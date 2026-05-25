@@ -1,0 +1,14 @@
+{
+  "name": "macos-web-os",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Premium glassmorphic macOS replica on the web using modular ES6 scripts.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.2.11"
+  }
+}

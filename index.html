@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>macOS Tahoe - Web Edition | Premium Liquid Glass OS</title>
+  <meta name="description" content="A pixel-perfect, fluid, and responsive macOS Tahoe (version 26) replica on the web. Features the translucent Liquid Glass design, dynamic window manager, Spotlight Search with Apple Intelligence, an interactive Siri waveform assistant, operational apps: Finder, Safari, Terminal, Notes, and a custom skiing game.">
+  
+  <!-- Premium Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Screen Brightness Dimmer Overlay -->
+  <div id="brightness-overlay" class="brightness-overlay"></div>
+
+  <!-- Audio elements for System Sounds (Generated via Web Audio API, fallbacks configured in JS) -->
+
+  <!-- 1. BOOT SCREEN -->
+  <div id="boot-screen" class="boot-screen">
+    <div class="boot-content">
+      <svg class="apple-logo-svg" viewBox="0 0 24 24" width="80" height="80">
+        <path fill="#ffffff" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/>
+      </svg>
+      <div class="progress-bar-container">
+        <div id="boot-progress" class="progress-bar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. LOCK SCREEN -->
+  <div id="lock-screen" class="lock-screen hidden">
+    <div class="lock-screen-bg"></div>
+    <div class="lock-screen-content">
+      
+      <!-- Lock Screen Clock -->
+      <div class="lock-clock">
+        <div id="lock-time" class="time">15:16</div>
+        <div id="lock-date" class="date">Monday, May 25</div>
+      </div>
+
+      <!-- Lock Profile Card -->
+      <div class="lock-profile">
+        <div class="avatar-container">
+          <div class="avatar">
+            <span class="avatar-text">VB</span>
+          </div>
+        </div>
+        <div class="username">Vedant Bhatnagar</div>
+        
+        <!-- Password Form -->
+        <form id="lock-form" class="lock-form">
+          <div class="input-wrapper">
+            <input type="password" id="lock-password" placeholder="Enter Password" autocomplete="current-password">
+            <button type="submit" class="submit-btn">
+              <i data-lucide="arrow-right"></i>
+            </button>
+          </div>
+          <div class="hint">Press Enter to Unlock</div>
+        </form>
+      </div>
+
+      <!-- Bottom controls -->
+      <div class="lock-bottom-controls">
+        <button type="button" class="lock-control-btn" id="lock-sleep-btn">
+          <i data-lucide="moon"></i>
+          <span>Sleep</span>
+        </button>
+        <button type="button" class="lock-control-btn" id="lock-restart-btn">
+          <i data-lucide="refresh-cw"></i>
+          <span>Restart</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. MAIN DESKTOP ENVIRONMENT -->
+  <div id="desktop-environment" class="desktop-environment hidden">
+    
+    <!-- Dynamic Wallpapers are managed in CSS and JS (Default Big Sur styling active) -->
+    <div id="desktop-bg" class="desktop-bg"></div>
+
+    <!-- A. TOP MENU BAR -->
+    <header class="menu-bar">
+      <!-- Left side items -->
+      <div class="menu-left">
+        <div class="menu-item has-dropdown" id="apple-menu">
+          <svg class="apple-logo-small" viewBox="0 0 24 24" width="16" height="16">
+            <path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/>
+          </svg>
+          <div class="dropdown-menu">
+            <div class="dropdown-item" id="about-mac-btn">About This Mac</div>
+            <hr class="dropdown-divider">
+            <div class="dropdown-item" id="menu-settings-btn">System Settings...</div>
+            <div class="dropdown-item">App Store...</div>
+            <hr class="dropdown-divider">
+            <div class="dropdown-item">Recent Items</div>
+            <hr class="dropdown-divider">
+            <div class="dropdown-item" id="menu-sleep-btn">Sleep</div>
+            <div class="dropdown-item" id="menu-restart-btn">Restart...</div>
+            <div class="dropdown-item" id="menu-lock-btn">Lock Screen</div>
+          </div>
+        </div>
+        <div class="menu-item active-app-name" id="active-app-display">Finder</div>
+        <div class="menu-item has-dropdown">File
+          <div class="dropdown-menu">
+            <div class="dropdown-item" id="menu-new-finder">New Finder Window</div>
+            <div class="dropdown-item" id="menu-new-folder">New Folder</div>
+            <div class="dropdown-item" id="menu-close-window">Close Window</div>
+          </div>
+        </div>
+        <div class="menu-item has-dropdown">Edit
+          <div class="dropdown-menu">
+            <div class="dropdown-item" id="menu-undo">Undo</div>
+            <div class="dropdown-item" id="menu-redo">Redo</div>
+            <hr class="dropdown-divider">
+            <div class="dropdown-item" id="menu-cut">Cut</div>
+            <div class="dropdown-item" id="menu-copy">Copy</div>
+            <div class="dropdown-item" id="menu-paste">Paste</div>
+          </div>
+        </div>
+        <div class="menu-item has-dropdown">View
+          <div class="dropdown-menu">
+            <div class="dropdown-item" id="menu-view-icons">As Icons</div>
+            <div class="dropdown-item" id="menu-view-list">As List</div>
+            <hr class="dropdown-divider">
+            <div class="dropdown-item" id="menu-clean-up">Clean Up</div>
+          </div>
+        </div>
+        <div class="menu-item has-dropdown">Go
+          <div class="dropdown-menu">
+            <div class="dropdown-item" id="menu-go-back">Back</div>
+            <div class="dropdown-item" id="menu-go-forward">Forward</div>
+            <hr class="dropdown-divider">
+            <div class="dropdown-item" id="menu-go-apps">Applications</div>
+            <div class="dropdown-item" id="menu-go-docs">Documents</div>
+            <div class="dropdown-item" id="menu-go-downloads">Downloads</div>
+          </div>
+        </div>
+        <div class="menu-item has-dropdown">Window
+          <div class="dropdown-menu">
+            <div class="dropdown-item" id="menu-window-minimize">Minimize</div>
+            <div class="dropdown-item" id="menu-window-zoom">Zoom</div>
+            <hr class="dropdown-divider">
+            <div class="dropdown-item" id="menu-window-front">Bring All to Front</div>
+          </div>
+        </div>
+        <div class="menu-item has-dropdown">Help
+          <div class="dropdown-menu">
+            <div class="dropdown-item" id="menu-help-docs">macOS Help</div>
+            <div class="dropdown-item" id="menu-help-feedback">Send Feedback</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right side items -->
+      <div class="menu-right">
+        <div class="menu-item has-dropdown" title="Battery Status" id="menu-battery-trigger">
+          <i data-lucide="battery" class="battery-icon"></i>
+          <span style="font-size: 11px; margin-left: 2px;">100%</span>
+          <div class="dropdown-menu dropdown-menu-right" style="width: 170px;">
+            <div class="dropdown-item" style="font-weight: 700; opacity: 0.5; font-size: 10px; cursor: default;">BATTERY</div>
+            <div class="dropdown-item" style="font-size: 12px; cursor: default;">Source: Adapter</div>
+            <div class="dropdown-item" style="font-size: 12px; cursor: default;">Condition: Normal</div>
+            <hr class="dropdown-divider">
+            <div class="dropdown-item" id="menu-battery-settings" style="font-size: 12px;">Settings...</div>
+          </div>
+        </div>
+        <div class="menu-item has-dropdown" title="Wi-Fi Status" id="menu-wifi-trigger">
+          <i data-lucide="wifi" id="menu-wifi-icon"></i>
+          <div class="dropdown-menu dropdown-menu-right" style="width: 190px;">
+            <div class="dropdown-item" style="font-weight: 700; opacity: 0.5; font-size: 10px; cursor: default;">WI-FI NETWORKS</div>
+            <div class="dropdown-item wifi-network-item active" data-ssid="HomeNet_5G" style="font-weight: 600; font-size: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+              <span>✓ HomeNet_5G</span>
+              <i data-lucide="lock" style="width: 10px; height: 10px;"></i>
+            </div>
+            <div class="dropdown-item wifi-network-item" data-ssid="Office_Secure" style="font-size: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+              <span>Office_Secure</span>
+              <i data-lucide="lock" style="width: 10px; height: 10px;"></i>
+            </div>
+            <div class="dropdown-item wifi-network-item" data-ssid="Tahoe_Lodge" style="font-size: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+              <span>Tahoe_Lodge</span>
+              <i data-lucide="lock" style="width: 10px; height: 10px;"></i>
+            </div>
+            <hr class="dropdown-divider">
+            <div class="dropdown-item" id="menu-wifi-settings" style="font-size: 12px; cursor: pointer;">Wi-Fi Settings...</div>
+          </div>
+        </div>
+        <div class="menu-item has-dropdown" title="Bluetooth Status" id="menu-bluetooth-trigger">
+          <i data-lucide="bluetooth" id="menu-bluetooth-icon"></i>
+          <div class="dropdown-menu dropdown-menu-right" style="width: 190px;">
+            <div class="dropdown-item" style="font-weight: 700; opacity: 0.5; font-size: 10px; cursor: default;">BLUETOOTH</div>
+            <div class="dropdown-item bt-device-item active" data-device="airpods" style="font-weight: 600; font-size: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+              <span>✓ AirPods Pro</span>
+              <span class="bt-status" style="font-size: 9px; opacity: 0.5;">90%</span>
+            </div>
+            <div class="dropdown-item bt-device-item active" data-device="keyboard" style="font-weight: 600; font-size: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+              <span>✓ Magic Keyboard</span>
+              <span class="bt-status" style="font-size: 9px; opacity: 0.5;">84%</span>
+            </div>
+            <div class="dropdown-item bt-device-item" data-device="trackpad" style="font-size: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+              <span>Magic Trackpad</span>
+              <span class="bt-status" style="font-size: 9px; opacity: 0.5;">Disconnected</span>
+            </div>
+            <hr class="dropdown-divider">
+            <div class="dropdown-item" id="menu-bluetooth-settings" style="font-size: 12px; cursor: pointer;">Bluetooth Settings...</div>
+          </div>
+        </div>
+        <div class="menu-item" id="spotlight-trigger" title="Spotlight Search (Cmd+Space)">
+          <i data-lucide="search"></i>
+        </div>
+        <div class="menu-item" id="siri-trigger" title="Siri / Apple Intelligence">
+          <i data-lucide="sparkles" style="color: #ff007f;"></i>
+        </div>
+        <div class="menu-item" id="control-center-trigger" title="Control Center">
+          <i data-lucide="sliders"></i>
+        </div>
+        <div class="menu-item time-display" id="menu-clock" title="Date & Time">
+          Mon May 25 3:16 PM
+        </div>
+      </div>
+    </header>
+
+    <!-- B. DYNAMIC CONTROL CENTER PANEL -->
+    <div id="control-center-panel" class="control-center-panel glass hidden">
+      <div class="cc-grid">
+        
+        <!-- Connectivity Block -->
+        <div class="cc-block connectivity glass-card">
+          <div class="cc-row" id="cc-wifi">
+            <div class="cc-icon-wrapper active"><i data-lucide="wifi"></i></div>
+            <div class="cc-info">
+              <span class="cc-title">Wi-Fi</span>
+              <span class="cc-status">HomeNet_5G</span>
+            </div>
+          </div>
+          <div class="cc-row" id="cc-bluetooth">
+            <div class="cc-icon-wrapper active"><i data-lucide="bluetooth"></i></div>
+            <div class="cc-info">
+              <span class="cc-title">Bluetooth</span>
+              <span class="cc-status">Connected</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Do Not Disturb / AirDrop -->
+        <div class="cc-block-column flex-col gap-2">
+          <div class="cc-block glass-card flex-row align-center gap-3 clickable" id="cc-dnd">
+            <div class="cc-icon-wrapper"><i data-lucide="moon"></i></div>
+            <div class="cc-info">
+              <span class="cc-title">Do Not Disturb</span>
+              <span class="cc-status" style="font-size: 10px;">Off</span>
+            </div>
+          </div>
+          <div class="cc-block glass-card flex-row align-center gap-3 clickable" id="cc-airdrop">
+            <div class="cc-icon-wrapper active"><i data-lucide="radio"></i></div>
+            <div class="cc-info">
+              <span class="cc-title">AirDrop</span>
+              <span class="cc-status" style="font-size: 10px;">Everyone</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Theme / Dark Mode toggle row -->
+      <div class="cc-block glass-card theme-slider-row" id="cc-theme-toggle">
+        <div class="cc-icon-wrapper active"><i data-lucide="sun"></i></div>
+        <div class="cc-info">
+          <span class="cc-title">Dark Mode</span>
+          <span class="cc-status" id="cc-theme-status">Off</span>
+        </div>
+      </div>
+
+      <!-- Brightness Slider -->
+      <div class="cc-slider-card glass-card">
+        <div class="slider-header">
+          <span class="slider-title">Display</span>
+          <span class="slider-val" id="cc-brightness-val">100%</span>
+        </div>
+        <div class="slider-row">
+          <i data-lucide="sun" class="slider-icon"></i>
+          <input type="range" id="cc-brightness-slider" min="20" max="100" value="100">
+        </div>
+      </div>
+
+      <!-- Volume Slider -->
+      <div class="cc-slider-card glass-card">
+        <div class="slider-header">
+          <span class="slider-title">Sound</span>
+          <span class="slider-val" id="cc-volume-val">70%</span>
+        </div>
+        <div class="slider-row">
+          <i data-lucide="volume-2" class="slider-icon" id="cc-volume-icon"></i>
+          <input type="range" id="cc-volume-slider" min="0" max="100" value="70">
+        </div>
+      </div>
+
+      <!-- Battery Status Details -->
+      <div class="cc-block glass-card flex-row justify-between align-center p-3" style="padding: 10px 14px;">
+        <span style="font-size: 12px; font-weight: 500;">Battery</span>
+        <span style="font-size: 12px; opacity: 0.8;">100% (Charged)</span>
+      </div>
+    </div>
+
+    <!-- C. MAIN WORKSPACE / DESKTOP -->
+    <main class="desktop-workspace" id="desktop-workspace">
+      
+      <!-- Desktop Icons -->
+      <div class="desktop-icons">
+        <div class="desktop-icon" data-app="finder">
+          <div class="icon-img-wrapper finder-gradient">
+            <i data-lucide="folder" class="desktop-icon-svg"></i>
+          </div>
+          <span class="icon-label">Macintosh HD</span>
+        </div>
+        <div class="desktop-icon" data-app="terminal">
+          <div class="icon-img-wrapper terminal-gradient">
+            <i data-lucide="terminal" class="desktop-icon-svg"></i>
+          </div>
+          <span class="icon-label">Terminal</span>
+        </div>
+        <div class="desktop-icon" data-app="notes">
+          <div class="icon-img-wrapper notes-gradient">
+            <i data-lucide="file-text" class="desktop-icon-svg"></i>
+          </div>
+          <span class="icon-label">Notes</span>
+        </div>
+      </div>
+
+      <!-- E. DESKTOP WIDGETS PANEL -->
+      <div class="desktop-widgets" id="desktop-widgets">
+        
+        <!-- Widget 1: Weather -->
+        <div class="widget weather-widget glass-card">
+          <div class="widget-header">
+            <span class="widget-title">WEATHER</span>
+            <span class="widget-location">Tahoe City</span>
+          </div>
+          <div class="widget-body">
+            <div class="weather-row">
+              <i data-lucide="cloud-snow" class="weather-icon"></i>
+              <span class="weather-temp">-2°C</span>
+            </div>
+            <div class="weather-desc">Light Snow Showers</div>
+            <div class="weather-stats">H: 1° L: -6° | Wind 14 km/h</div>
+          </div>
+        </div>
+
+        <!-- Widget 2: Clock -->
+        <div class="widget clock-widget glass-card">
+          <div class="widget-header">
+            <span class="widget-title">WORLD CLOCK</span>
+            <span class="widget-location">Tahoe Local</span>
+          </div>
+          <div class="widget-body clock-body">
+            <div id="widget-digital-time" class="widget-time">03:21 PM</div>
+            <div id="widget-digital-sec" class="widget-sec">45s</div>
+            <div id="widget-date-str" class="widget-date">Mon, May 25</div>
+          </div>
+        </div>
+
+        <!-- Widget 3: Performance Monitor -->
+        <div class="widget perf-widget glass-card">
+          <div class="widget-header">
+            <span class="widget-title">SYSTEM MONITOR</span>
+            <span class="widget-location">Tahoe Core</span>
+          </div>
+          <div class="widget-body perf-body">
+            <div class="perf-row">
+              <span class="perf-label">M3 CPU</span>
+              <div class="perf-track"><div id="widget-cpu-bar" class="perf-bar" style="width: 14%;"></div></div>
+              <span id="widget-cpu-text" class="perf-val">14%</span>
+            </div>
+            <div class="perf-row">
+              <span class="perf-label">GPU Core</span>
+              <div class="perf-track"><div id="widget-gpu-bar" class="perf-bar" style="width: 32%;"></div></div>
+              <span id="widget-gpu-text" class="perf-val">32%</span>
+            </div>
+            <div class="perf-row">
+              <span class="perf-label">RAM (128G)</span>
+              <div class="perf-track"><div id="widget-ram-bar" class="perf-bar" style="width: 48%;"></div></div>
+              <span id="widget-ram-text" class="perf-val">48%</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Window Spawning Container -->
+      <div id="window-container" class="window-container"></div>
+    </main>
+
+    <!-- D. PREVENT BOTTOM CLIPPING & DOCK OVERLAPS: BOTTOM DOCK -->
+    <div class="dock-container">
+      <div class="dock glass" id="mac-dock">
+        
+        <!-- Finder App -->
+        <div class="dock-item-wrapper" data-app="finder">
+          <div class="dock-item finder-icon" title="Finder">
+            <div class="finder-face">
+              <div class="finder-eye left"></div>
+              <div class="finder-eye right"></div>
+              <div class="finder-nose"></div>
+              <div class="finder-smile"></div>
+            </div>
+          </div>
+          <div class="indicator" id="ind-finder"></div>
+        </div>
+
+        <!-- Safari App -->
+        <div class="dock-item-wrapper" data-app="safari">
+          <div class="dock-item safari-icon" title="Safari">
+            <div class="safari-compass">
+              <div class="compass-dial"></div>
+              <div class="compass-needle"></div>
+            </div>
+          </div>
+          <div class="indicator" id="ind-safari"></div>
+        </div>
+
+        <!-- Notes App -->
+        <div class="dock-item-wrapper" data-app="notes">
+          <div class="dock-item notes-icon" title="Notes">
+            <div class="notes-binding"></div>
+            <div class="notes-paper">
+              <div class="paper-line"></div>
+              <div class="paper-line"></div>
+              <div class="paper-line"></div>
+            </div>
+          </div>
+          <div class="indicator" id="ind-notes"></div>
+        </div>
+
+        <!-- Terminal App -->
+        <div class="dock-item-wrapper" data-app="terminal">
+          <div class="dock-item terminal-icon" title="Terminal">
+            <div class="terminal-inner">
+              <span class="terminal-text">&gt;_</span>
+            </div>
+          </div>
+          <div class="indicator" id="ind-terminal"></div>
+        </div>
+
+        <!-- App Store App -->
+        <div class="dock-item-wrapper" data-app="appstore">
+          <div class="dock-item glass" title="App Store" style="background: linear-gradient(135deg, #0055ff 0%, #002288 100%); display:flex; justify-content:center; align-items:center; position:relative; overflow:hidden;">
+            <div style="position:absolute; top:-50%; left:-50%; width:200%; height:200%; background: linear-gradient(45deg, transparent, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0.08) 60%, transparent); transform:rotate(30deg); animation: shimmer 6s infinite linear;"></div>
+            <i data-lucide="shopping-bag" style="width: 20px; height: 20px; color: #ffffff; position:relative; z-index:2;"></i>
+          </div>
+          <div class="indicator" id="ind-appstore"></div>
+        </div>
+
+        <!-- Calculator App -->
+        <div class="dock-item-wrapper" data-app="calculator">
+          <div class="dock-item calculator-icon" title="Calculator">
+            <div class="calc-grid-icon">
+              <div class="calc-dot orange"></div>
+              <div class="calc-dot gray"></div>
+              <div class="calc-dot gray"></div>
+              <div class="calc-dot orange"></div>
+            </div>
+          </div>
+          <div class="indicator" id="ind-calculator"></div>
+        </div>
+
+        <!-- Games App -->
+        <div class="dock-item-wrapper" data-app="games">
+          <div class="dock-item glass" title="Games" style="background: linear-gradient(135deg, #a25df5 0%, #681ad2 100%); display:flex; justify-content:center; align-items:center;">
+            <i data-lucide="gamepad-2" style="width: 22px; height: 22px; color: #ffffff;"></i>
+          </div>
+          <div class="indicator" id="ind-games"></div>
+        </div>
+
+        <!-- System Settings App -->
+        <div class="dock-item-wrapper" data-app="settings">
+          <div class="dock-item settings-icon" title="System Settings">
+            <div class="settings-gear">
+              <div class="gear-teeth"></div>
+              <div class="gear-inner"></div>
+            </div>
+          </div>
+          <div class="indicator" id="ind-settings"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. ABOUT THIS MAC MODAL WINDOW (Special static template managed in CSS & JS) -->
+  <div id="about-mac-modal" class="modal-overlay hidden">
+    <div class="about-mac-window glass">
+      <div class="about-mac-header">
+        <button class="about-close-btn" id="about-close-btn"></button>
+      </div>
+      <div class="about-mac-content">
+        <svg class="about-apple-logo" viewBox="0 0 24 24" width="70" height="70">
+          <path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/>
+        </svg>
+        <div class="mac-model-title">macOS Tahoe 26</div>
+        <div class="mac-os-version">Version 16.0.0 (Tahoe 26 Replica)</div>
+        <hr class="about-divider">
+        <div class="about-mac-specs">
+          <div class="spec-row">
+            <span class="spec-label">Chip</span>
+            <span class="spec-value">Apple M4 Ultra (Tahoe Core)</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Memory</span>
+            <span class="spec-value">128 GB LPDDR5</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Graphics</span>
+            <span class="spec-value">76-core GPU</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Startup Disk</span>
+            <span class="spec-value">Macintosh HD</span>
+          </div>
+        </div>
+        <div class="copyright-notice">™ & © 1983-2026 Apple Inc. All Rights Reserved.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spotlight Search Console Overlay -->
+  <div id="spotlight-overlay" class="spotlight-overlay hidden">
+    <div class="spotlight-container" id="spotlight-container">
+      <div class="spotlight-search-row">
+        <i data-lucide="search" class="spotlight-search-icon"></i>
+        <input type="text" id="spotlight-input" class="spotlight-input" placeholder="Spotlight Search or Ask Apple Intelligence..." autocomplete="off" spellcheck="false">
+      </div>
+      <div class="spotlight-results" id="spotlight-results">
+        <!-- Search results rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Siri Sidebar Panel -->
+  <div id="siri-panel" class="siri-sidebar glass hidden">
+    <div class="siri-header">
+      <span class="siri-title"><i data-lucide="sparkles"></i> Siri</span>
+      <button class="siri-close-btn" id="siri-close-btn"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
+    </div>
+    <div class="siri-chat-log" id="siri-chat-log">
+      <div class="siri-bubble siri">Hi, I'm Siri, your Apple Intelligence core. How can I help you in macOS Tahoe today?</div>
+    </div>
+    <div class="siri-wave-wrapper">
+      <canvas class="siri-wave-canvas" id="siri-wave-canvas"></canvas>
+    </div>
+    <div class="siri-input-row">
+      <input type="text" class="siri-input-box" id="siri-input-box" placeholder="Ask Siri anything..." autocomplete="off">
+      <button class="siri-send-btn" id="siri-send-btn"><i data-lucide="arrow-up" style="width: 16px; height: 16px;"></i></button>
+    </div>
+  </div>
+
+  <!-- Context Menu Panel -->
+  <div id="desktop-context-menu" class="context-menu glass">
+    <div class="context-menu-item" id="ctx-new-folder">
+      <span>New Folder</span>
+      <span style="opacity: 0.4; font-size: 10px;">⌥⌘N</span>
+    </div>
+    <div class="context-menu-item" id="ctx-clean-up">
+      <span>Clean Up Icons</span>
+    </div>
+    <hr class="context-menu-divider">
+    <div class="context-menu-item" id="ctx-spotlight">
+      <span>Spotlight Search</span>
+      <span style="opacity: 0.4; font-size: 10px;">⌘Space</span>
+    </div>
+    <div class="context-menu-item" id="ctx-siri">
+      <span>Ask Siri (AI)</span>
+      <span style="opacity: 0.4; font-size: 10px;">⌥Space</span>
+    </div>
+    <hr class="context-menu-divider">
+    <div class="context-menu-item" id="ctx-change-wallpaper">
+      <span>Change Wallpaper...</span>
+    </div>
+  </div>
+
+  <!-- Modular Scripts Bootstrapping -->
+  <script type="module" src="js/main.js"></script>
+
+</body>
+</html>
