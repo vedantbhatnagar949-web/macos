@@ -4,3 +4,14 @@ dist/
 *.log
 .env*
 !*.env.example
+
+# Local webos persistent files
+webos_files/
+
+# Media and resources
+*.mp4
+assets.7z
+MacTahoe-gtk-theme/
+MacTahoe-icon-theme/
+status_icons.txt
+

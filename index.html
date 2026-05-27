@@ -163,7 +163,7 @@
       <!-- Right side items -->
       <div class="menu-right">
         <div class="menu-item has-dropdown" title="Battery Status" id="menu-battery-trigger">
-          <i data-lucide="battery" class="battery-icon"></i>
+          <img class="topbar-icon" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/status/battery-100.ico" width="14" height="14" alt="Battery" />
           <span style="font-size: 11px; margin-left: 2px;">100%</span>
           <div class="dropdown-menu dropdown-menu-right" style="width: 170px;">
             <div class="dropdown-item" style="font-weight: 700; opacity: 0.5; font-size: 10px; cursor: default;">BATTERY</div>
@@ -174,7 +174,7 @@
           </div>
         </div>
         <div class="menu-item has-dropdown" title="Wi-Fi Status" id="menu-wifi-trigger">
-          <i data-lucide="wifi" id="menu-wifi-icon"></i>
+          <img class="topbar-icon" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/preferences/preferences-system-network.ico" width="14" height="14" alt="WiFi" />
           <div class="dropdown-menu dropdown-menu-right" style="width: 190px;">
             <div class="dropdown-item" style="font-weight: 700; opacity: 0.5; font-size: 10px; cursor: default;">WI-FI NETWORKS</div>
             <div class="dropdown-item wifi-network-item active" data-ssid="HomeNet_5G" style="font-weight: 600; font-size: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
@@ -194,7 +194,7 @@
           </div>
         </div>
         <div class="menu-item has-dropdown" title="Bluetooth Status" id="menu-bluetooth-trigger">
-          <i data-lucide="bluetooth" id="menu-bluetooth-icon"></i>
+          <img class="topbar-icon" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/preferences/preferences-system-bluetooth.ico" width="14" height="14" alt="Bluetooth" />
           <div class="dropdown-menu dropdown-menu-right" style="width: 190px;">
             <div class="dropdown-item" style="font-weight: 700; opacity: 0.5; font-size: 10px; cursor: default;">BLUETOOTH</div>
             <div class="dropdown-item bt-device-item active" data-device="airpods" style="font-weight: 600; font-size: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
@@ -213,11 +213,14 @@
             <div class="dropdown-item" id="menu-bluetooth-settings" style="font-size: 12px; cursor: pointer;">Bluetooth Settings...</div>
           </div>
         </div>
-        <div class="menu-item" id="spotlight-trigger" title="Spotlight Search (Cmd+Space)">
-          <i data-lucide="search"></i>
+        <div class="menu-item" id="spotlight-trigger" title="Spotlight Search (Cmd+Space)" style="display: flex; align-items: center; justify-content: center; padding: 0 8px; cursor: pointer;">
+          <svg width="15" height="15" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="color: var(--text-primary); opacity: 0.95;">
+            <circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="2.2" />
+            <line x1="13.3" y1="13.3" x2="18.5" y2="18.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+          </svg>
         </div>
-        <div class="menu-item" id="siri-trigger" title="Siri / Apple Intelligence">
-          <i data-lucide="sparkles" style="color: #ff007f;"></i>
+        <div class="menu-item" id="siri-trigger" title="Siri / Apple Intelligence" style="display: flex; align-items: center; justify-content: center; padding: 0 8px; cursor: pointer;">
+          <div class="siri-icon-orb" style="width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #ff69b4, #8a2be2 50%, #00ffff 80%); box-shadow: 0 0 8px rgba(138, 43, 226, 0.75), inset -1.5px -1.5px 4px rgba(0,0,0,0.4); animation: siri-glow-pulse 2s infinite ease-in-out;"></div>
         </div>
         <div class="menu-item" id="control-center-trigger" title="Control Center">
           <i data-lucide="sliders"></i>
@@ -315,21 +318,15 @@
       <!-- Desktop Icons -->
       <div class="desktop-icons">
         <div class="desktop-icon" data-app="finder">
-          <div class="icon-img-wrapper finder-gradient">
-            <i data-lucide="folder" class="desktop-icon-svg"></i>
-          </div>
+          <img class="desktop-icon-img" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/devices/Mac Drive.ico" alt="Macintosh HD" style="width: 40px; height: 40px; object-fit: contain; margin-bottom: 2px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));" />
           <span class="icon-label">Macintosh HD</span>
         </div>
         <div class="desktop-icon" data-app="terminal">
-          <div class="icon-img-wrapper terminal-gradient">
-            <i data-lucide="terminal" class="desktop-icon-svg"></i>
-          </div>
+          <img class="desktop-icon-img" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/terminal.ico" alt="Terminal" style="width: 40px; height: 40px; object-fit: contain; margin-bottom: 2px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));" />
           <span class="icon-label">Terminal</span>
         </div>
         <div class="desktop-icon" data-app="notes">
-          <div class="icon-img-wrapper notes-gradient">
-            <i data-lucide="file-text" class="desktop-icon-svg"></i>
-          </div>
+          <img class="desktop-icon-img" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/accessories-text-editor.ico" alt="Notes" style="width: 40px; height: 40px; object-fit: contain; margin-bottom: 2px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));" />
           <span class="icon-label">Notes</span>
         </div>
       </div>
@@ -403,89 +400,73 @@
         
         <!-- Finder App -->
         <div class="dock-item-wrapper" data-app="finder">
-          <div class="dock-item finder-icon" title="Finder">
-            <div class="finder-face">
-              <div class="finder-eye left"></div>
-              <div class="finder-eye right"></div>
-              <div class="finder-nose"></div>
-              <div class="finder-smile"></div>
-            </div>
-          </div>
+          <img class="dock-item" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/file-manager.ico" alt="Finder" />
           <div class="indicator" id="ind-finder"></div>
         </div>
 
         <!-- Safari App -->
         <div class="dock-item-wrapper" data-app="safari">
-          <div class="dock-item safari-icon" title="Safari">
-            <div class="safari-compass">
-              <div class="compass-dial"></div>
-              <div class="compass-needle"></div>
-            </div>
-          </div>
+          <img class="dock-item" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/web-browser.ico" alt="Safari" />
           <div class="indicator" id="ind-safari"></div>
         </div>
 
         <!-- Notes App -->
         <div class="dock-item-wrapper" data-app="notes">
-          <div class="dock-item notes-icon" title="Notes">
-            <div class="notes-binding"></div>
-            <div class="notes-paper">
-              <div class="paper-line"></div>
-              <div class="paper-line"></div>
-              <div class="paper-line"></div>
-            </div>
-          </div>
+          <img class="dock-item" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/accessories-text-editor.ico" alt="Notes" />
           <div class="indicator" id="ind-notes"></div>
         </div>
 
         <!-- Terminal App -->
         <div class="dock-item-wrapper" data-app="terminal">
-          <div class="dock-item terminal-icon" title="Terminal">
-            <div class="terminal-inner">
-              <span class="terminal-text">&gt;_</span>
-            </div>
-          </div>
+          <img class="dock-item" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/terminal.ico" alt="Terminal" />
           <div class="indicator" id="ind-terminal"></div>
         </div>
 
         <!-- App Store App -->
         <div class="dock-item-wrapper" data-app="appstore">
-          <div class="dock-item glass" title="App Store" style="background: linear-gradient(135deg, #0055ff 0%, #002288 100%); display:flex; justify-content:center; align-items:center; position:relative; overflow:hidden;">
-            <div style="position:absolute; top:-50%; left:-50%; width:200%; height:200%; background: linear-gradient(45deg, transparent, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0.08) 60%, transparent); transform:rotate(30deg); animation: shimmer 6s infinite linear;"></div>
-            <i data-lucide="shopping-bag" style="width: 20px; height: 20px; color: #ffffff; position:relative; z-index:2;"></i>
-          </div>
+          <img class="dock-item" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/softwarecenter.ico" alt="App Store" />
           <div class="indicator" id="ind-appstore"></div>
         </div>
 
         <!-- Calculator App -->
         <div class="dock-item-wrapper" data-app="calculator">
-          <div class="dock-item calculator-icon" title="Calculator">
-            <div class="calc-grid-icon">
-              <div class="calc-dot orange"></div>
-              <div class="calc-dot gray"></div>
-              <div class="calc-dot gray"></div>
-              <div class="calc-dot orange"></div>
-            </div>
-          </div>
+          <img class="dock-item" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/calc.ico" alt="Calculator" />
           <div class="indicator" id="ind-calculator"></div>
         </div>
 
         <!-- Games App -->
         <div class="dock-item-wrapper" data-app="games">
-          <div class="dock-item glass" title="Games" style="background: linear-gradient(135deg, #a25df5 0%, #681ad2 100%); display:flex; justify-content:center; align-items:center;">
-            <i data-lucide="gamepad-2" style="width: 22px; height: 22px; color: #ffffff;"></i>
-          </div>
+          <img class="dock-item" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/applications-games.ico" alt="Games" />
           <div class="indicator" id="ind-games"></div>
+        </div>
+
+        <!-- Paint App -->
+        <div class="dock-item-wrapper" data-app="paint">
+          <img class="dock-item" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/gnome-paint.ico" alt="Paint" />
+          <div class="indicator" id="ind-paint"></div>
+        </div>
+
+        <!-- Calendar App -->
+        <div class="dock-item-wrapper" data-app="calendar">
+          <img class="dock-item" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/calendar.ico" alt="Calendar" />
+          <div class="indicator" id="ind-calendar"></div>
+        </div>
+
+        <!-- Timer App -->
+        <div class="dock-item-wrapper" data-app="timer">
+          <img class="dock-item" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/add-times.ico" alt="Timer" />
+          <div class="indicator" id="ind-timer"></div>
+        </div>
+
+        <!-- Camera App -->
+        <div class="dock-item-wrapper" data-app="camera">
+          <img class="dock-item" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/accessories-camera.ico" alt="Camera" />
+          <div class="indicator" id="ind-camera"></div>
         </div>
 
         <!-- System Settings App -->
         <div class="dock-item-wrapper" data-app="settings">
-          <div class="dock-item settings-icon" title="System Settings">
-            <div class="settings-gear">
-              <div class="gear-teeth"></div>
-              <div class="gear-inner"></div>
-            </div>
-          </div>
+          <img class="dock-item" src="assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/preferences-system.ico" alt="System Settings" />
           <div class="indicator" id="ind-settings"></div>
         </div>
 

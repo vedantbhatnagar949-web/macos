@@ -267,50 +267,124 @@ function initLockScreen() {
 }
 
 // ==========================================
-// 4. PARABOLIC DOCK MAGNIFICATION (Mac Proximity scale)
+// 4. PARABOLIC DOCK MAGNIFICATION (Mac Proximity scale) & TOOLTIPS
 // ==========================================
 function initDockMagnification() {
   const dock = document.getElementById('mac-dock');
-  const items = dock.querySelectorAll('.dock-item-wrapper');
-
   if (!dock) return;
 
   dock.addEventListener('pointermove', (e) => {
-    const mouseX = e.clientX;
-
+    const items = dock.querySelectorAll('.dock-item-wrapper');
+    
+    // Add tooltips dynamically if missing
     items.forEach(wrapper => {
+      if (!wrapper.querySelector('.dock-tooltip')) {
+        const iconEl = wrapper.querySelector('.dock-item');
+        const tooltipText = iconEl ? (iconEl.getAttribute('alt') || wrapper.dataset.app) : wrapper.dataset.app;
+        const tooltip = document.createElement('div');
+        tooltip.className = 'dock-tooltip';
+        tooltip.textContent = tooltipText;
+        wrapper.appendChild(tooltip);
+      }
+    });
+
+    const mouseX = e.clientX;
+    const itemsArray = Array.from(items);
+    const totalItems = itemsArray.length;
+    
+    // Deterministically calculate unscaled base layout to prevent animation feedback loops
+    // padding-left: 12px, padding-right: 12px = 24
+    const baseDockWidth = 24 + (totalItems * 40) + Math.max(0, totalItems - 1) * 10;
+    const baseDockLeft = (window.innerWidth - baseDockWidth) / 2;
+
+    itemsArray.forEach((wrapper, index) => {
       const icon = wrapper.querySelector('.dock-item');
-      const rect = icon.getBoundingClientRect();
-      const iconCenter = rect.left + rect.width / 2;
+      if (!icon) return;
       
-      // Calculate distance between mouse and icon center
+      // Calculate absolute deterministic center of this icon
+      const iconCenter = baseDockLeft + 12 + (index * 50) + 20;
+      
+      // Calculate distance between mouse and virtual base center
       const dist = Math.abs(mouseX - iconCenter);
       
-      // Parabolic scale range limits: 150px proximity boundaries
-      const maxDistance = 150;
+      // Tighter range so only the hovered and immediate neighbors magnify heavily
+      const maxDistance = 96;
       let scale = 1.0;
 
       if (dist < maxDistance) {
-        // Smooth cosine interpolation mapping values to 1.55x scale peak
         const ratio = (maxDistance - dist) / maxDistance;
-        scale = 1.0 + (ratio * 0.55);
+        // Sharper curve keeps neighbors medium-small while hovered icon peaks high
+        scale = 1.0 + Math.pow(ratio, 1.5) * 0.9;
       }
 
       icon.style.width = `${scale * 40}px`;
       icon.style.height = `${scale * 40}px`;
-      icon.style.transform = `translateY(${-((scale - 1.0) * 12)}px)`;
+      // Push up smoothly so they pop out of the glass
+      icon.style.transform = `translateY(${-((scale - 1.0) * 16)}px)`;
+      
+      // Adjust margin to push neighboring items smoothly
+      const margin = (scale - 1.0) * 12;
+      wrapper.style.margin = `0 ${margin}px`;
     });
   });
 
   dock.addEventListener('pointerleave', () => {
-    // Reset all items back to standard ratios
+    const items = dock.querySelectorAll('.dock-item-wrapper');
     items.forEach(wrapper => {
       const icon = wrapper.querySelector('.dock-item');
-      icon.style.width = '40px';
-      icon.style.height = '40px';
-      icon.style.transform = 'none';
+      if (icon) {
+        icon.style.width = '40px';
+        icon.style.height = '40px';
+        icon.style.transform = 'translateY(0)';
+      }
+      wrapper.style.margin = '0 0px';
     });
   });
+}
+
+// ==========================================
+// 4B. DOCK AUTO-HIDE SYSTEM
+// ==========================================
+function initDockAutoHide() {
+  const dockContainer = document.querySelector('.dock-container');
+  if (!dockContainer) return;
+
+  let hideTimeout;
+
+  function showDock() {
+    dockContainer.classList.remove('dock-hidden');
+    resetHideTimer();
+  }
+
+  function hideDock() {
+    dockContainer.classList.add('dock-hidden');
+  }
+
+  function resetHideTimer() {
+    clearTimeout(hideTimeout);
+    hideTimeout = setTimeout(hideDock, 10000); // 10 seconds idle
+  }
+
+  // Reveal dock if mouse moves to bottom 50px of screen
+  document.addEventListener('pointermove', (e) => {
+    if (e.clientY > window.innerHeight - 50) {
+      showDock();
+    } else {
+      resetHideTimer(); // Just moving around resets timer too
+    }
+  });
+
+  // If hovering the dock itself, definitely keep it open
+  dockContainer.addEventListener('pointerenter', () => {
+    clearTimeout(hideTimeout);
+  });
+  
+  dockContainer.addEventListener('pointerleave', () => {
+    resetHideTimer();
+  });
+
+  // Start timer initially
+  resetHideTimer();
 }
 
 // ==========================================
@@ -393,7 +467,7 @@ function launchApp(appId) {
     safari: { width: 720, height: 480 },
     terminal: { width: 550, height: 380 },
     notes: { width: 580, height: 400 },
-    calculator: { width: 260, height: 380 },
+    calculator: { width: 260, height: 420 },
     settings: { width: 600, height: 420 },
     games: { width: 560, height: 490 },
     appstore: { width: 680, height: 460 },
@@ -555,6 +629,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Initialize core OS elements ONCE during DOM content load to prevent listener duplication!
   initMenu();
   initDockMagnification();
+  initDockAutoHide();
   initAppLaunchers();
   syncInstalledApps();
   initAppleDropdownModal();

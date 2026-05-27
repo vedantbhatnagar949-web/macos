@@ -3,62 +3,16 @@ import { mockFS, getNodeByPath, createNewFolderInFS } from './fs.js';
 import { createWindow } from './window.js';
 import { appHTMLRegistry } from './apps.js';
 
-export function renderDesktopIcons() {
+function bindDesktopIconListeners() {
   const container = document.querySelector('.desktop-icons');
   if (!container) return;
 
-  // Clear container
-  container.innerHTML = '';
-
-  // 1. Render default hardcoded dynamic app launchers
-  const defaultLaunchers = [
-    { appId: 'finder', name: 'Macintosh HD', icon: 'folder', gradient: 'finder-gradient' },
-    { appId: 'terminal', name: 'Terminal', icon: 'terminal', gradient: 'terminal-gradient' },
-    { appId: 'notes', name: 'Notes', icon: 'file-text', gradient: 'notes-gradient' }
-  ];
-
-  defaultLaunchers.forEach(item => {
-    const iconHTML = `
-      <div class="desktop-icon" data-app="${item.appId}">
-        <div class="icon-img-wrapper ${item.gradient}">
-          <i data-lucide="${item.icon}" class="desktop-icon-svg"></i>
-        </div>
-        <span class="icon-label">${item.name}</span>
-      </div>
-    `;
-    container.insertAdjacentHTML('beforeend', iconHTML);
-  });
-
-  // 2. Render files and folders dynamically from Desktop virtual directory
-  const desktopNode = getNodeByPath(['~', 'Desktop']);
-  if (desktopNode && desktopNode.children) {
-    Object.entries(desktopNode.children).forEach(([name, node]) => {
-      const isFile = node.type === 'file';
-      const iconType = isFile ? 'file-text' : 'folder';
-      
-      // Separate gradients to look premium and stunning
-      const bgStyle = isFile 
-        ? 'background: linear-gradient(135deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.15) 100%); border: 1px solid rgba(255,255,255,0.25);' 
-        : 'background: linear-gradient(135deg, #74c7fd 0%, #1573ec 100%);';
-
-      const fileHTML = `
-        <div class="desktop-icon" data-path="Desktop/${name}" data-type="${node.type}">
-          <div class="icon-img-wrapper" style="${bgStyle}">
-            <i data-lucide="${iconType}" class="desktop-icon-svg" style="${isFile ? 'color: #ffffff;' : ''}"></i>
-          </div>
-          <span class="icon-label">${name}</span>
-        </div>
-      `;
-      container.insertAdjacentHTML('beforeend', fileHTML);
-    });
-  }
-
-  // Generate icons via Lucide CDN
-  if (window.lucide) window.lucide.createIcons();
-
-  // Re-bind click selection and double click launches
   const icons = container.querySelectorAll('.desktop-icon');
   icons.forEach(icon => {
+    // Prevent double binding
+    if (icon.dataset.bound) return;
+    icon.dataset.bound = "true";
+
     icon.addEventListener('click', (e) => {
       e.stopPropagation();
       icons.forEach(el => el.classList.remove('selected'));
@@ -70,11 +24,20 @@ export function renderDesktopIcons() {
       const appId = icon.getAttribute('data-app');
       const path = icon.getAttribute('data-path');
       const type = icon.getAttribute('data-type');
+      const realFile = icon.getAttribute('data-real-file');
+      const content = icon.getAttribute('data-content');
 
-      if (path && type === 'file') {
+      if (realFile) {
+        const lowerName = realFile.toLowerCase();
+        const uid = `${lowerName.replace(/[^a-z0-9]/g,'_')}_${Date.now()}`;
+        if (lowerName.endsWith('.png') || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.gif') || lowerName.endsWith('.ico') || lowerName.endsWith('.webp') || lowerName.endsWith('.bmp') || lowerName.endsWith('.svg') || lowerName.endsWith('.pdf')) {
+          createWindow(`preview_${uid}`, `Preview — ${realFile}`, appHTMLRegistry.preview, { width: 640, height: 520, fileContent: content, fileName: realFile });
+        } else if (lowerName.endsWith('.exe') || lowerName.endsWith('.dmg') || lowerName.endsWith('.pkg') || lowerName.endsWith('.msi')) {
+          createWindow(`installer_${uid}`, `App Installer`, appHTMLRegistry.installer, { width: 460, height: 380, fileName: realFile });
+        }
+      } else if (path && type === 'file') {
         const node = getNodeByPath(['~', ...path.split('/')]);
         if (node) {
-          // Open customized dynamic Text Reader or Image Previewer
           const viewerId = `viewer-${Date.now()}`;
           const isImage = node.content.startsWith('data:image/') || path.toLowerCase().endsWith('.png');
           
@@ -88,6 +51,7 @@ export function renderDesktopIcons() {
                 <img src="${node.content}" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,0.4);" />
               </div>
             `;
+            createWindow(viewerId, winTitle, htmlPayload, { width: 500, height: 400 });
           } else {
             winTitle = `Text Editor - ${path.split('/').pop()}`;
             htmlPayload = `
@@ -96,15 +60,13 @@ export function renderDesktopIcons() {
                 <p style="white-space: pre-wrap; font-family: inherit; font-weight: 400; opacity: 0.85;">${node.content}</p>
               </div>
             `;
+            createWindow(viewerId, winTitle, htmlPayload, { width: 420, height: 280 });
           }
-          createWindow(viewerId, winTitle, htmlPayload, isImage ? { width: 500, height: 400 } : { width: 420, height: 280 });
         }
       } else if (path && type === 'dir') {
-        // Directory, point Finder to this specific path
         window.finderStartFolder = path;
         createWindow('finder', 'Finder', appHTMLRegistry.finder, { width: 620, height: 400 });
       } else if (appId) {
-        // App launch
         const titleMap = {
           finder: 'Finder',
           terminal: 'Terminal Bash',
@@ -117,7 +79,7 @@ export function renderDesktopIcons() {
           finder: { width: 620, height: 400 },
           terminal: { width: 550, height: 380 },
           notes: { width: 580, height: 400 },
-          calculator: { width: 260, height: 380 },
+          calculator: { width: 260, height: 420 },
           settings: { width: 600, height: 420 },
           games: { width: 560, height: 490 }
         };
@@ -125,6 +87,84 @@ export function renderDesktopIcons() {
       }
     });
   });
+}
+
+export function renderDesktopIcons() {
+  const container = document.querySelector('.desktop-icons');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  const defaultLaunchers = [
+    { appId: 'finder', name: 'Macintosh HD', src: 'assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/devices/Mac Drive.ico' },
+    { appId: 'terminal', name: 'Terminal', src: 'assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/terminal.ico' },
+    { appId: 'notes', name: 'Notes', src: 'assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/accessories-text-editor.ico' }
+  ];
+
+  defaultLaunchers.forEach(item => {
+    const iconHTML = `
+      <div class="desktop-icon" data-app="${item.appId}">
+        <img class="desktop-icon-img" src="${item.src}" alt="${item.name}" style="width: 40px; height: 40px; object-fit: contain; margin-bottom: 2px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));" />
+        <span class="icon-label">${item.name}</span>
+      </div>
+    `;
+    container.insertAdjacentHTML('beforeend', iconHTML);
+  });
+
+  // Render real files from disk directly onto the desktop (filtering out standard template files)
+  fetch('/api/files')
+    .then(res => {
+      if (!res.ok) throw new Error();
+      return res.json();
+    })
+    .then(data => {
+      data.files.forEach(f => {
+        const name = f.name;
+        if (name === 'Welcome.txt' || name === 'System_Specs.txt' || name === 'Todo.txt' || name === 'Developer_Readme.md') return;
+
+        const lowerName = name.toLowerCase();
+        let iconSrc = 'assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/mimes/text-x-generic.ico';
+        
+        if (lowerName.endsWith('.png') || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.gif') || lowerName.endsWith('.ico') || lowerName.endsWith('.webp') || lowerName.endsWith('.bmp') || lowerName.endsWith('.svg')) {
+          iconSrc = 'assets/macOS 26 Tahoe Icons Resources/Variations/macOS 26 Library default/Photos@4x 1.ico';
+        } else if (lowerName.endsWith('.pdf')) {
+          iconSrc = 'assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/mimes/application-pdf.ico';
+        } else if (lowerName.endsWith('.dmg') || lowerName.endsWith('.exe') || lowerName.endsWith('.pkg') || lowerName.endsWith('.msi')) {
+          iconSrc = 'assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/utilities-terminal.ico';
+        }
+
+        const fileHTML = `
+          <div class="desktop-icon" data-real-file="${name}" data-type="file" data-content="${f.content || ''}">
+            <img class="desktop-icon-img" src="${iconSrc}" alt="${name}" style="width: 40px; height: 40px; object-fit: contain; margin-bottom: 2px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));" />
+            <span class="icon-label">${name}</span>
+          </div>
+        `;
+        container.insertAdjacentHTML('beforeend', fileHTML);
+      });
+      bindDesktopIconListeners();
+    })
+    .catch(() => {
+      // Fallback to virtual Desktop directory if server is offline
+      const desktopNode = getNodeByPath(['~', 'Desktop']);
+      if (desktopNode && desktopNode.children) {
+        Object.entries(desktopNode.children).forEach(([name, node]) => {
+          const isFile = node.type === 'file';
+          const folderColor = localStorage.getItem('folderColor') || 'color-blue';
+          const folderIcon = `assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/Folders Colors/${folderColor}/folder.ico`;
+          const fileIcon = 'assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/mimes/text-x-generic.ico';
+          const iconSrc = isFile ? fileIcon : folderIcon;
+
+          const fileHTML = `
+            <div class="desktop-icon" data-path="Desktop/${name}" data-type="${node.type}">
+              <img class="desktop-icon-img" src="${iconSrc}" alt="${name}" style="width: 40px; height: 40px; object-fit: contain; margin-bottom: 2px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));" />
+              <span class="icon-label">${name}</span>
+            </div>
+          `;
+          container.insertAdjacentHTML('beforeend', fileHTML);
+        });
+      }
+      bindDesktopIconListeners();
+    });
 }
 
 export function initContextMenu() {

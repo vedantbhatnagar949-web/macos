@@ -31,9 +31,9 @@
   --border-subtle: rgba(0, 0, 0, 0.08);
   
   /* Wallpapers (Official macOS Tahoe 26 Custom Designs) */
-  --wallpaper-tahoe-light: url('./assets/tahoe_light.png');
-  --wallpaper-tahoe-dark: url('./assets/tahoe_dark.png');
-  --wallpaper-active: var(--wallpaper-tahoe-light);
+  --wallpaper-mac-tahoe-day: url('./assets/MacTahoe-day.jpeg');
+  --wallpaper-mac-tahoe-night: url('./assets/MacTahoe-night.jpeg');
+  --wallpaper-active: var(--wallpaper-mac-tahoe-day);
 }
 
 [data-theme="dark"] {
@@ -51,7 +51,7 @@
   --text-secondary: #a1a1a6;
   --text-inverse: #1d1d1f;
   --border-subtle: rgba(255, 255, 255, 0.06);
-  --wallpaper-active: var(--wallpaper-tahoe-dark);
+  --wallpaper-active: var(--wallpaper-mac-tahoe-night);
 }
 
 /* ==========================================
@@ -108,6 +108,11 @@ body {
   pointer-events: none;
   z-index: 999999;
   transition: opacity 0.15s ease;
+}
+
+/* Dock transition styling */
+.dock-transitioning {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 /* Liquid Glass 2.6 theme styling */
@@ -1037,6 +1042,8 @@ body {
   position: absolute;
   min-width: 320px;
   min-height: 200px;
+  max-width: 100vw;
+  max-height: calc(100vh - 70px);
   border-radius: 16px; /* Smoother Apple-like squircle corners */
   box-shadow: var(--window-box-shadow);
   border: 1.2px solid rgba(255, 255, 255, 0.45);
@@ -1126,11 +1133,15 @@ body {
 
 /* Fullscreen Window Modifier */
 .mac-window.maximized {
+  position: fixed !important;
   width: 100vw !important;
-  height: calc(100vh - 25px) !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
   top: 0 !important;
   left: 0 !important;
-  border-radius: 0;
+  border-radius: 0 !important;
+  z-index: 9999999 !important; /* Cover dock and top menu bar */
 }
 
 /* Genie Effect (Minimize) */
@@ -1153,6 +1164,11 @@ body {
   padding-bottom: 8px;
   z-index: 7000;
   pointer-events: none; /* Click details behind dock bounds */
+  transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.dock-container.dock-hidden {
+  transform: translateY(150px);
 }
 
 .dock {
@@ -1173,6 +1189,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  transition: margin 0.12s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .dock-item {
@@ -1183,8 +1200,8 @@ body {
   justify-content: center;
   align-items: center;
   color: #ffffff;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-  transition: width 0.12s ease-out, height 0.12s ease-out, transform 0.12s ease-out;
+  object-fit: contain;
+  transition: width 0.12s cubic-bezier(0.25, 1, 0.5, 1), height 0.12s cubic-bezier(0.25, 1, 0.5, 1), transform 0.12s cubic-bezier(0.25, 1, 0.5, 1);
   cursor: default;
   will-change: width, height, transform;
 }
@@ -1193,6 +1210,43 @@ body {
   width: 55%;
   height: 55%;
   pointer-events: none;
+}
+
+/* Tooltip styles */
+.dock-tooltip {
+  position: absolute;
+  top: -40px;
+  background-color: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: var(--font-body);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(10px) scale(0.9);
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 8000;
+}
+
+.dock-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 4px 4px 0;
+  border-style: solid;
+  border-color: rgba(0, 0, 0, 0.4) transparent transparent transparent;
+}
+
+.dock-item-wrapper:hover .dock-tooltip {
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }
 
 /* Indicator dots */
@@ -1212,7 +1266,7 @@ body {
 
 /* Proximity Scale factors mapping */
 .dock:hover {
-  height: 68px;
+  /* Keep background static while icons break out of it */
 }
 
 /* Bouncing Launch animation */
@@ -1418,52 +1472,96 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 20px;
   height: 100%;
   color: #1d1d1f;
-  background: radial-gradient(circle, #fcfcfd 0%, #e6e9f0 100%);
-  padding: 20px;
+  background: #f5f5f7; /* Standard macOS light grey background */
+  padding: 60px 20px;
+  overflow-y: auto;
+  position: relative;
 }
 
-.safari-welcome-title {
+.safari-section {
+  width: 100%;
+  max-width: 700px; /* Match screenshot width constraint */
+  margin-bottom: 20px;
+}
+
+.safari-section-title {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 32px;
-  text-align: center;
+  font-size: 22px;
+  color: #1d1d1f;
+  margin-bottom: 16px;
+  text-align: left;
 }
 
 .safari-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 30px;
   width: 100%;
-  max-width: 500px;
-  margin-top: 10px;
 }
 
 .safari-tile {
-  background-color: rgba(255, 255, 255, 0.8);
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  background-color: transparent;
+  border-radius: 0;
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 16px;
-  cursor: default;
-  transition: transform 0.2s;
+  justify-content: flex-start;
+  width: 80px;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.2s, filter 0.2s;
 }
 
 .safari-tile:hover {
-  transform: translateY(-4px);
+  filter: brightness(0.95);
 }
 
-.safari-tile-icon {
-  width: 24px;
-  height: 24px;
-  color: var(--primary-accent);
+.safari-tile-icon-wrapper {
+  overflow: hidden;
+}
+
+.safari-privacy-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+.safari-privacy-icon {
+  width: 20px;
+  height: 20px;
+  color: #6e6e73;
+}
+
+.safari-privacy-text {
+  font-size: 13px;
+  color: #1d1d1f;
+  font-weight: 500;
+}
+
+.safari-settings-icon {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #8e8e93;
+  cursor: pointer;
+}
+
+.safari-settings-icon:hover {
+  color: #1d1d1f;
 }
 
 .safari-tile-label {
@@ -1664,11 +1762,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  justify-content: flex-end;
 }
 
 .calc-display {
-  height: 70px;
+  flex: 1;
   display: flex;
   align-items: flex-end;
   justify-content: flex-end;
@@ -2475,6 +2572,33 @@ input:checked + .slider:before {
   color: var(--text-primary);
 }
 
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-body);
+  background-color: #000;
+  color: var(--text-primary);
+  user-select: none;
+  -webkit-user-select: none;
+  /* Apply macOS Custom Cursors globally */
+  cursor: url('assets/macOS 26 Tahoe Icons Resources/Cursor/extracted/MacOS-Tahoe-Windows-Free/MacOS-Tahoe-Free/Normal Select.cur'), default;
+}
+
+a, button, .dock-item, .desktop-icon, .menu-item, .window-action, [role="button"] {
+  cursor: url('assets/macOS 26 Tahoe Icons Resources/Cursor/extracted/MacOS-Tahoe-Windows-Free/MacOS-Tahoe-Free/Link Select.cur'), pointer !important;
+}
+
+input, textarea, [contenteditable="true"] {
+  cursor: url('assets/macOS 26 Tahoe Icons Resources/Cursor/extracted/MacOS-Tahoe-Windows-Free/MacOS-Tahoe-Free/Text Select.cur'), text !important;
+}
+
+.window-titlebar {
+  cursor: url('assets/macOS 26 Tahoe Icons Resources/Cursor/extracted/MacOS-Tahoe-Windows-Free/MacOS-Tahoe-Free/Move.cur'), move;
+}
+
 .siri-send-btn {
   background: none;
   border: none;
@@ -2801,6 +2925,23 @@ input:checked + .slider:before {
   height: 0.5px;
   background: var(--border-subtle);
   margin: 4px 0;
+}
+
+/* ==========================================
+   16. GLOWING SIRI ORB ANIMATIONS
+   ========================================== */
+.siri-icon-orb {
+  transition: transform 0.2s ease-in-out;
+}
+.siri-icon-orb:hover {
+  transform: scale(1.15) !important;
+  filter: brightness(1.25) drop-shadow(0 0 10px rgba(138, 43, 226, 0.95)) !important;
+}
+
+@keyframes siri-glow-pulse {
+  0% { transform: scale(1); filter: brightness(1) drop-shadow(0 0 4px rgba(138, 43, 226, 0.6)); }
+  50% { transform: scale(1.08); filter: brightness(1.15) drop-shadow(0 0 8px rgba(138, 43, 226, 0.85)); }
+  100% { transform: scale(1); filter: brightness(1) drop-shadow(0 0 4px rgba(138, 43, 226, 0.6)); }
 }
 
 

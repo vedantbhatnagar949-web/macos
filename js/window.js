@@ -94,6 +94,13 @@ export function createWindow(appId, title, contentHTML, options = {}) {
   container.appendChild(win);
   openWindows.set(appId, win);
 
+  // Copy extra options onto dataset (e.g. fileContent, fileName for Preview/Installer)
+  Object.entries(options).forEach(([key, val]) => {
+    if (key !== 'width' && key !== 'height') {
+      win.dataset[key] = val;
+    }
+  });
+
   // Focus immediately
   focusWindow(win);
 

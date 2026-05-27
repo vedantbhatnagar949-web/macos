@@ -5,7 +5,7 @@ import { mockFS, getNodeByPath } from './fs.js';
 // 1. APP HTML STRUCTURES REGISTRY
 // ==========================================
 export const appHTMLRegistry = {
-  
+
   finder: `
     <div class="finder-layout">
       <aside class="finder-sidebar">
@@ -407,6 +407,33 @@ export const appHTMLRegistry = {
         </div>
       </div>
     </div>
+  `,
+  preview: `
+    <div style="width:100%; height:100%; display:flex; flex-direction:column; background:#1e1e1e; overflow:hidden;">
+      <div class="preview-toolbar" style="height:38px; border-bottom:1px solid #333; display:flex; align-items:center; padding:0 12px; background:#2d2d2d;">
+        <span class="preview-title" style="color:#fff; font-size:12px; font-weight:500;">Preview</span>
+      </div>
+      <div class="preview-content" style="flex-grow:1; display:flex; justify-content:center; align-items:center; padding:20px;">
+        <img class="preview-img" src="" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,0.5);">
+      </div>
+    </div>
+  `,
+  installer: `
+    <div style="width:100%; height:100%; display:flex; flex-direction:column; background:var(--bg-primary); overflow:hidden;">
+      <div style="height:48px; border-bottom:1px solid var(--border-subtle); display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.02);">
+        <span style="font-weight:600; font-size:13px;">App Installer Simulator</span>
+      </div>
+      <div style="flex-grow:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:30px; text-align:center;">
+        <i data-lucide="package" style="width:64px; height:64px; color:var(--text-primary); opacity:0.8; margin-bottom:20px;"></i>
+        <h3 class="installer-title" style="margin:0 0 10px 0; font-size:18px; font-weight:600;">Installing Application</h3>
+        <p class="installer-desc" style="font-size:13px; color:var(--text-secondary); margin-bottom:30px; max-width:80%;">Please wait while the application is configured for WebOS...</p>
+        
+        <div style="width:100%; max-width:280px; height:6px; background:var(--border-subtle); border-radius:3px; overflow:hidden;">
+          <div class="installer-progress" style="width:0%; height:100%; background:#0066cc; transition:width 0.2s ease;"></div>
+        </div>
+        <p class="installer-status" style="font-size:11px; color:var(--text-secondary); margin-top:12px; font-variant-numeric: tabular-nums;">0%</p>
+      </div>
+    </div>
   `
 };
 
@@ -415,10 +442,20 @@ export const appHTMLRegistry = {
 // 2. ACTIVE APPLICATION RUNTIME INTERFACES
 // ==========================================
 export function bindAppLogic(appId, win) {
-  
+
   if (window.lucide) window.lucide.createIcons();
 
-  switch (appId) {
+  // Resolve dynamic prefixed IDs (e.g. "preview_abc_123" → "preview")
+  let resolvedId = appId;
+  const prefixMap = ['preview', 'installer', 'safari', 'finder', 'terminal', 'notes', 'calculator', 'settings', 'games', 'appstore', 'paint', 'calendar', 'timer', 'camera'];
+  for (const prefix of prefixMap) {
+    if (appId === prefix || appId.startsWith(prefix + '_')) {
+      resolvedId = prefix;
+      break;
+    }
+  }
+
+  switch (resolvedId) {
     case 'finder':
       bindFinder(win);
       break;
@@ -439,6 +476,12 @@ export function bindAppLogic(appId, win) {
       break;
     case 'games':
       bindGames(win);
+      break;
+    case 'preview':
+      bindPreview(win);
+      break;
+    case 'installer':
+      bindInstaller(win);
       break;
     case 'appstore':
       bindAppStore(win);
@@ -495,24 +538,64 @@ function bindFinder(win) {
     }
   }
 
-  function renderFinderGrid(folderName, pushToHistory = true) {
+  async function renderFinderGrid(folderName, pushToHistory = true) {
     if (!grid) return;
+    grid.innerHTML = '<div style="padding: 20px;">Loading files...</div>';
+
+    let files = [];
+    try {
+      const res = await fetch('/api/files');
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      files = data.files.map(f => ({
+        name: f.name,
+        type: f.isDirectory ? 'dir' : 'file',
+        content: f.content || ''
+      }));
+    } catch (e) {
+      // Fallback to mock filesystem
+      const folderNode = getNodeByPath(['~', ...folderName.split('/')]);
+      if (!folderNode || folderNode.type !== 'dir') {
+        grid.innerHTML = '';
+        return;
+      }
+      files = Object.entries(folderNode.children).map(([n, node]) => ({
+        name: n,
+        type: node.type,
+        content: node.content
+      }));
+    }
+
     grid.innerHTML = '';
 
-    const folderNode = getNodeByPath(['~', ...folderName.split('/')]);
-    if (!folderNode || folderNode.type !== 'dir') return;
-
-    Object.entries(folderNode.children).forEach(([name, node]) => {
+    files.forEach((file) => {
+      const { name, type, content } = file;
       const fileEl = document.createElement('div');
       fileEl.className = 'finder-file';
+
+      const isFile = type === 'file';
+      const folderColor = localStorage.getItem('folderColor') || 'color-blue';
+      const folderIconPath = `assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/Folders Colors/${folderColor}/folder.ico`;
       
-      const isFile = node.type === 'file';
-      const iconType = isFile ? 'file-text' : 'folder';
-      const colorStyle = isFile ? 'color: #8e8e93;' : 'color: #007aff;';
+      // Determine file icon based on file type
+      const lowerName = name.toLowerCase();
+      let fileIconPath = 'assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/mimes/text-x-generic.ico';
+      
+      if (lowerName.endsWith('.png') || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.gif') || lowerName.endsWith('.ico') || lowerName.endsWith('.webp') || lowerName.endsWith('.bmp') || lowerName.endsWith('.svg')) {
+         fileIconPath = 'assets/macOS 26 Tahoe Icons Resources/Variations/macOS 26 Library default/Photos@4x 1.ico';
+      } else if (lowerName.endsWith('.pdf')) {
+         fileIconPath = 'assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/mimes/application-pdf.ico';
+      } else if (lowerName.endsWith('.dmg') || lowerName.endsWith('.exe') || lowerName.endsWith('.pkg') || lowerName.endsWith('.msi')) {
+         fileIconPath = 'assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/utilities-terminal.ico';
+      } else if (lowerName.endsWith('.txt') || lowerName.endsWith('.md')) {
+         fileIconPath = 'assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/accessories-text-editor.ico';
+      }
+
+      const iconPath = isFile ? fileIconPath : folderIconPath;
 
       fileEl.innerHTML = `
         <div class="finder-file-icon-wrapper" style="margin-bottom: 2px;">
-          <i data-lucide="${iconType}" class="finder-file-icon" style="${colorStyle}"></i>
+          <img src="${iconPath}" alt="${name}" class="finder-file-icon" style="width: 36px; height: 36px; object-fit: contain;">
         </div>
         <span class="finder-file-name">${name}</span>
       `;
@@ -520,8 +603,17 @@ function bindFinder(win) {
       // Double click operation to read/open
       fileEl.addEventListener('dblclick', () => {
         if (isFile) {
-          // Open simulated text reader window
-          alertFileContent(name, node.content);
+          const uid = `${lowerName.replace(/[^a-z0-9]/g,'_')}_${Date.now()}`;
+          if (lowerName.endsWith('.png') || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.gif') || lowerName.endsWith('.ico') || lowerName.endsWith('.webp') || lowerName.endsWith('.bmp') || lowerName.endsWith('.svg') || lowerName.endsWith('.pdf')) {
+            import('./window.js').then(m => m.createWindow(`preview_${uid}`, `Preview — ${name}`, appHTMLRegistry.preview, { width: 640, height: 520, fileContent: content, fileName: name }));
+          } else if (lowerName.endsWith('.xls') || lowerName.endsWith('.xlsx') || lowerName.endsWith('.ppt') || lowerName.endsWith('.pptx') || lowerName.endsWith('.csv')) {
+            // Open doc URL in a new OS Safari window
+            import('./window.js').then(m => m.createWindow(`safari_${uid}`, `Safari`, appHTMLRegistry.safari, { width: 860, height: 620 }));
+          } else if (lowerName.endsWith('.exe') || lowerName.endsWith('.dmg') || lowerName.endsWith('.pkg') || lowerName.endsWith('.msi')) {
+            import('./window.js').then(m => m.createWindow(`installer_${uid}`, `App Installer`, appHTMLRegistry.installer, { width: 460, height: 380, fileName: name }));
+          } else {
+            alertFileContent(name, content || 'File format not supported.');
+          }
         } else {
           // Navigate inside if directory exists
           if (pushToHistory) {
@@ -583,10 +675,10 @@ function alertFileContent(title, content) {
   import('./window.js').then(module => {
     const viewerId = `viewer-${Date.now()}`;
     const isImage = content.startsWith('data:image/') || title.toLowerCase().endsWith('.png');
-    
+
     let htmlPayload = '';
     let winTitle = '';
-    
+
     if (isImage) {
       winTitle = `Preview - ${title}`;
       htmlPayload = `
@@ -603,7 +695,7 @@ function alertFileContent(title, content) {
         </div>
       `;
     }
-    
+
     module.createWindow(viewerId, winTitle, htmlPayload, isImage ? { width: 500, height: 400 } : { width: 420, height: 280 });
   });
 }
@@ -620,38 +712,129 @@ function bindSafari(win) {
   const historyStack = [];
 
   const bookmarks = [
-    { label: 'Google', url: 'https://google.com', icon: 'search' },
-    { label: 'YouTube', url: 'https://youtube.com', icon: 'play' },
-    { label: 'Wikipedia', url: 'https://wikipedia.org', icon: 'book-open' },
-    { label: 'Apple Store', url: 'https://apple.com', icon: 'shopping-bag' }
+    { label: 'Apple', url: 'https://apple.com', icon: 'apple', color: '#8e8e93', type: 'icon' },
+    { label: 'iCloud', url: 'https://icloud.com', icon: 'cloud', color: '#8e8e93', type: 'icon' },
+    { label: 'Yahoo', url: 'https://yahoo.com', text: 'Y', color: '#7b0099', type: 'text' },
+    { label: 'Bing', url: 'https://bing.com', text: 'B', color: '#8e8e93', type: 'text' },
+    { label: 'Google', url: 'https://google.com', text: 'G', color: '#8e8e93', type: 'text' },
+    { label: 'Wikipedia', url: 'https://wikipedia.org', text: 'W', color: '#ffffff', textColor: '#000000', type: 'text' },
+    { label: 'Facebook', url: 'https://facebook.com', icon: 'facebook', color: '#3b5998', type: 'icon' },
+    { label: 'Twitter', url: 'https://twitter.com', icon: 'twitter', color: '#1da1f2', type: 'icon' },
+    { label: 'LinkedIn', url: 'https://linkedin.com', icon: 'linkedin', color: '#0077b5', type: 'icon' },
+    { label: 'The Weather...', url: 'https://weather.com', text: 'The<br>Weather<br>Channel', color: '#003399', type: 'text', small: true },
+    { label: 'Yelp', url: 'https://yelp.com', text: 'yelp<i data-lucide="asterisk" style="width:12px; height:12px; display:inline-block; margin-left:2px;"></i>', color: '#d32323', type: 'text', flexRow: true },
+    { label: 'TripAdvisor', url: 'https://tripadvisor.com', icon: 'glasses', color: '#34e0a1', textColor: '#000000', type: 'icon' }
   ];
 
   function renderSafariHome() {
-    input.value = 'safari://home';
+    input.value = '';
     container.innerHTML = `
-      <div class="safari-home">
-        <h1 class="safari-welcome-title">Safari</h1>
-        <p style="font-size: 13px; opacity:0.75; text-align:center;">Favorites and popular shortcuts</p>
-        <div class="safari-grid" id="safari-favs"></div>
+      <div class="safari-home" style="padding: 20px; display: flex; flex-direction: column; gap: 20px;">
+        <div class="safari-section">
+          <h2 class="safari-section-title">Favorites</h2>
+          <div class="safari-grid" id="safari-favs"></div>
+        </div>
+
+        <div class="safari-section">
+          <h2 class="safari-section-title">WebOS Downloader</h2>
+          <div class="safari-privacy-card" style="display: flex; flex-direction: column; gap: 12px; padding: 16px; background: rgba(255, 255, 255, 0.05); border-radius: 12px; border: 0.5px solid rgba(255, 255, 255, 0.1);">
+            <div style="font-size: 12px; opacity: 0.85; display: flex; align-items: center; gap: 6px;">
+              <i data-lucide="download-cloud" style="width: 16px; height: 16px; color: #0a84ff;"></i>
+              <span style="font-weight: 600;">Download files (Images, PDFs, or any assets) directly into Finder</span>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <input type="text" id="safari-dl-url" placeholder="Paste file URL here (e.g. https://example.com/photo.jpg)" style="flex-grow: 2; padding: 8px 12px; border-radius: 8px; border: 0.5px solid rgba(255, 255, 255, 0.15); background: rgba(255, 255, 255, 0.08); color: var(--text-primary); font-size: 12px; outline: none; min-width: 200px;">
+              <input type="text" id="safari-dl-name" placeholder="Filename (optional)" style="flex-grow: 1; padding: 8px 12px; border-radius: 8px; border: 0.5px solid rgba(255, 255, 255, 0.15); background: rgba(255, 255, 255, 0.08); color: var(--text-primary); font-size: 12px; outline: none; max-width: 150px;">
+              <button id="safari-dl-btn" style="background: #0071e3; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;">
+                <i data-lucide="download" style="width: 14px; height: 14px;"></i> Download
+              </button>
+            </div>
+            <div id="safari-dl-status" style="font-size: 11.5px; font-weight: 500; display: none;"></div>
+          </div>
+        </div>
+
+        <div class="safari-section">
+          <h2 class="safari-section-title">Privacy Report</h2>
+          <div class="safari-privacy-card">
+            <i data-lucide="shield-check" class="safari-privacy-icon"></i>
+            <span class="safari-privacy-text">Safari has not encountered any trackers in the last seven days.</span>
+          </div>
+        </div>
+
+        <div class="safari-settings-icon">
+          <i data-lucide="sliders-horizontal"></i>
+        </div>
       </div>
     `;
-    
+
     const favsGrid = container.querySelector('#safari-favs');
     bookmarks.forEach(bm => {
       const tile = document.createElement('div');
       tile.className = 'safari-tile';
+      
+      const tc = bm.textColor || '#ffffff';
+      let contentHtml = '';
+      if (bm.type === 'icon') {
+        contentHtml = `<i data-lucide="${bm.icon}" style="width:36px; height:36px; color:${tc};"></i>`;
+      } else {
+        const style = bm.small ? 'font-size: 11px; line-height: 1.1; font-weight: 600;' : 'font-size: 32px; font-weight: 500; font-family: serif;';
+        contentHtml = `<div style="color:${tc}; ${style} text-align:center; display:flex; align-items:center; justify-content:center;">${bm.text}</div>`;
+      }
+
       tile.innerHTML = `
-        <div class="safari-tile-icon-wrapper" style="background-color:#ffffff; width:44px; height:44px; border-radius:50%; display:flex; justify-content:center; align-items:center; box-shadow:0 3px 6px rgba(0,0,0,0.06); color: var(--primary-accent);">
-          <i data-lucide="${bm.icon}" class="safari-tile-icon" style="width:20px; height:20px;"></i>
+        <div class="safari-tile-icon-wrapper" style="background-color:${bm.color}; width:80px; height:80px; border-radius:18px; display:flex; justify-content:center; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+          ${contentHtml}
         </div>
-        <span class="safari-tile-label">${bm.label}</span>
+        <span class="safari-tile-label" style="margin-top: 8px; font-size: 11px; color: #1d1d1f; text-align:center;">${bm.label}</span>
       `;
       tile.addEventListener('click', () => {
-        historyStack.push('safari://home');
+        historyStack.push('');
         loadPage(bm.url);
       });
       favsGrid.appendChild(tile);
     });
+
+    const dlBtn = container.querySelector('#safari-dl-btn');
+    const dlUrlInput = container.querySelector('#safari-dl-url');
+    const dlNameInput = container.querySelector('#safari-dl-name');
+    const dlStatus = container.querySelector('#safari-dl-status');
+
+    if (dlBtn) {
+      dlBtn.addEventListener('click', () => {
+        const url = dlUrlInput.value.trim();
+        let filename = dlNameInput.value.trim();
+        if (!url) {
+          alert('Please enter a valid file URL to download.');
+          return;
+        }
+
+        dlStatus.style.display = 'block';
+        dlStatus.style.color = '#ff9f0a';
+        dlStatus.innerHTML = 'Downloading and persisting file to WebOS...';
+
+        fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, filename })
+        })
+        .then(res => {
+          if (!res.ok) throw new Error('Download failed. Please check the URL.');
+          return res.json();
+        })
+        .then(data => {
+          dlStatus.style.color = '#32d74b';
+          dlStatus.innerHTML = `✓ Successfully downloaded <strong>${data.name}</strong> to your Finder!`;
+          dlUrlInput.value = '';
+          dlNameInput.value = '';
+          // Dispatch filesystem change to reload finder grid automatically
+          window.dispatchEvent(new CustomEvent('fs-change'));
+        })
+        .catch(err => {
+          dlStatus.style.color = '#ff453a';
+          dlStatus.innerHTML = `❌ Error: ${err.message}`;
+        });
+      });
+    }
 
     if (window.lucide) window.lucide.createIcons();
     updateToolbar();
@@ -682,14 +865,51 @@ function bindSafari(win) {
 
   function loadPage(url) {
     let cleanUrl = url.trim();
-    if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://') && !cleanUrl.startsWith('safari://')) {
-      if (cleanUrl.includes('.')) {
+
+    // Smart app name → direct URL resolution
+    const appUrlMap = {
+      'google meet': 'https://meet.google.com',
+      'meet': 'https://meet.google.com',
+      'gmail': 'https://mail.google.com',
+      'youtube': 'https://www.youtube.com',
+      'yt': 'https://www.youtube.com',
+      'google drive': 'https://drive.google.com',
+      'drive': 'https://drive.google.com',
+      'google docs': 'https://docs.google.com',
+      'docs': 'https://docs.google.com',
+      'google sheets': 'https://sheets.google.com',
+      'sheets': 'https://sheets.google.com',
+      'instagram': 'https://www.instagram.com',
+      'facebook': 'https://www.facebook.com',
+      'twitter': 'https://x.com',
+      'x': 'https://x.com',
+      'whatsapp': 'https://web.whatsapp.com',
+      'discord': 'https://discord.com/app',
+      'spotify': 'https://open.spotify.com',
+      'netflix': 'https://www.netflix.com',
+      'amazon': 'https://www.amazon.com',
+      'github': 'https://github.com',
+      'reddit': 'https://www.reddit.com',
+      'twitch': 'https://www.twitch.tv',
+      'figma': 'https://www.figma.com',
+      'notion': 'https://www.notion.so',
+      'chatgpt': 'https://chat.openai.com',
+      'chat gpt': 'https://chat.openai.com',
+      'google': 'https://www.google.com',
+    };
+
+    const lowerInput = cleanUrl.toLowerCase();
+    if (appUrlMap[lowerInput]) {
+      cleanUrl = appUrlMap[lowerInput];
+    } else if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://') && !cleanUrl.startsWith('safari://')) {
+      if (cleanUrl.includes('.') && !cleanUrl.includes(' ')) {
         cleanUrl = 'https://' + cleanUrl;
       } else {
-        cleanUrl = 'https://google.com?q=' + encodeURIComponent(cleanUrl);
+        // Use DuckDuckGo — it allows iframe embedding unlike Google Search
+        cleanUrl = 'https://duckduckgo.com/?q=' + encodeURIComponent(cleanUrl) + '&kae=d&k1=-1';
       }
     }
-    
+
     input.value = cleanUrl;
     updateToolbar();
 
@@ -709,7 +929,7 @@ function bindSafari(win) {
       addrBar.style.position = 'relative';
       addrBar.appendChild(loadLine);
     }
-    
+
     loadLine.style.width = '20%';
     setTimeout(() => { if (loadLine) loadLine.style.width = '60%'; }, 150);
 
@@ -725,514 +945,21 @@ function bindSafari(win) {
       return;
     }
 
-    // Check if it's one of the fully built in-app custom simulated portals
-    // But ONLY if it doesn't have custom query variables that bypass it (e.g. from real links)
-    const isSearchEngine = cleanUrl.includes('google.com') && !cleanUrl.includes('google.com/search?igu=1');
-    const isMockYoutube = cleanUrl.includes('youtube.com') && !cleanUrl.includes('embed');
-    const isMockApple = cleanUrl.includes('apple.com') && !cleanUrl.includes('store') && !cleanUrl.includes('developer');
-    const isMockWiki = cleanUrl.includes('wikipedia.org') && !cleanUrl.includes('/wiki/');
-
-    if (isSearchEngine || isMockYoutube || isMockApple || isMockWiki) {
-      let pageHTML = '';
-      if (isSearchEngine) {
-        const q = new URLSearchParams(cleanUrl.split('?')[1] || '').get('q') || '';
-        pageHTML = renderGoogleSearch(q);
-      } else if (isMockYoutube) {
-        pageHTML = renderYouTubePortal();
-      } else if (isMockApple) {
-        pageHTML = renderAppleStore();
-      } else if (isMockWiki) {
-        const q = new URLSearchParams(cleanUrl.split('?')[1] || '').get('q') || '';
-        pageHTML = renderWikipedia(q);
+    // Load the actual site natively via iframe
+    // This allows games (like deadshot.io), WebGL, and complex SPAs to run perfectly!
+    if (loadLine) loadLine.style.width = '85%';
+    
+    setTimeout(() => {
+      if (loadLine) {
+        loadLine.style.width = '100%';
+        setTimeout(() => loadLine.remove(), 200);
       }
 
-      setTimeout(() => {
-        if (loadLine) {
-          loadLine.style.width = '100%';
-          setTimeout(() => loadLine.remove(), 200);
-        }
-        container.innerHTML = pageHTML;
-        bindSimulatedSiteActions(cleanUrl);
-        if (window.lucide) window.lucide.createIcons();
-      }, 400);
-      return;
-    }
-
-    // Otherwise, it is a LITERALLY REAL site request! Load it through our smart CORS Raw proxy!
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(cleanUrl)}`;
-
-    fetch(proxyUrl)
-      .then(res => {
-        if (!res.ok) throw new Error('Proxy connection rejected');
-        return res.text();
-      })
-      .then(html => {
-        if (loadLine) loadLine.style.width = '85%';
-        
-        // Inject absolute base coordinates & link click interceptors
-        const baseTag = `<base href="${cleanUrl}">`;
-        const interceptorScript = `
-          <script>
-            // Intercept standard anchor link clicks
-            document.addEventListener('click', function(e) {
-              var anchor = e.target.closest('a');
-              if (anchor && anchor.href) {
-                var hrefAttr = anchor.getAttribute('href');
-                if (hrefAttr && hrefAttr.startsWith('#')) return; // Allow page anchors
-
-                e.preventDefault();
-                // Post message up to Safari parent window
-                window.parent.postMessage({ type: 'safari-navigate', url: anchor.href }, '*');
-              }
-            });
-
-            // Intercept form submissions (e.g. search boxes)
-            document.addEventListener('submit', function(e) {
-              var form = e.target;
-              if (form.action) {
-                e.preventDefault();
-                var url = new URL(form.action);
-                var formData = new FormData(form);
-                for (var pair of formData.entries()) {
-                  url.searchParams.set(pair[0], pair[1]);
-                }
-                window.parent.postMessage({ type: 'safari-navigate', url: url.href }, '*');
-              }
-            });
-          </script>
-        `;
-
-        let processedHtml = html;
-        if (processedHtml.includes('<head>')) {
-          processedHtml = processedHtml.replace('<head>', '<head>' + baseTag + interceptorScript);
-        } else if (processedHtml.includes('<HEAD>')) {
-          processedHtml = processedHtml.replace('<HEAD>', '<HEAD>' + baseTag + interceptorScript);
-        } else {
-          processedHtml = baseTag + interceptorScript + processedHtml;
-        }
-
-        setTimeout(() => {
-          if (loadLine) {
-            loadLine.style.width = '100%';
-            setTimeout(() => loadLine.remove(), 200);
-          }
-          
-          // Render sandboxed real iframe
-          container.innerHTML = `
-            <iframe id="safari-real-frame" style="width:100%; height:100%; border:none; background:#ffffff;" sandbox="allow-scripts allow-same-origin allow-forms" srcdoc="${processedHtml.replace(/"/g, '&quot;')}"></iframe>
-          `;
-        }, 300);
-      })
-      .catch(err => {
-        console.error('Browser CORS block:', err);
-        
-        setTimeout(() => {
-          if (loadLine) {
-            loadLine.style.width = '100%';
-            setTimeout(() => loadLine.remove(), 200);
-          }
-
-          // Render gorgeous macOS style error page
-          container.innerHTML = `
-            <div style="padding:40px 20px; font-family:var(--font-body); background:#ffffff; color:#1d1d1f; height:100%; overflow:auto; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; box-sizing:border-box;">
-              <i data-lucide="shield-alert" style="width:48px; height:48px; color:#ff453a; margin-bottom:16px;"></i>
-              <h3 style="font-size:18px; font-weight:700; margin-bottom:8px; font-family:var(--font-display);">Unable to Load Page</h3>
-              <p style="font-size:12px; opacity:0.65; max-width:380px; line-height:1.6; margin-bottom:20px;">
-                The proxy adapter was blocked from fetching <strong>${cleanUrl}</strong> due to strict cross-origin security frameworks.
-              </p>
-              <div style="background:#f5f5f7; border-radius:8px; padding:12px 16px; border:0.5px solid rgba(0,0,0,0.06); font-size:11px; color:#515154; max-width:400px; text-align:left; line-height:1.5;">
-                <strong>Developer Notice:</strong> High security platforms (like Google, GitHub, or Amazon) enforce strict frame isolation headers. Other standard sites (like Wikipedia or blogs) load flawlessly.
-              </div>
-              <button id="safari-err-home-btn" style="margin-top:20px; background:#0071e3; color:#fff; border:none; padding:8px 20px; border-radius:18px; font-size:12px; font-weight:700; cursor:pointer;">Safari Home</button>
-            </div>
-          `;
-
-          const errHomeBtn = container.querySelector('#safari-err-home-btn');
-          if (errHomeBtn) {
-            errHomeBtn.addEventListener('click', () => {
-              loadPage('safari://home');
-            });
-          }
-          if (window.lucide) window.lucide.createIcons();
-        }, 300);
-      });
-  }
-
-  // A. GOOGLE SIMULATED ENGINE
-  function renderGoogleSearch(query) {
-    if (!query) {
-      return `
-        <div style="background-color:#ffffff; color:#000000; font-family:var(--font-body); height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 20px;">
-          <h2 style="font-size: 48px; font-weight:800; background:linear-gradient(to right, #4285F4 25%, #ea4335 50%, #fbbc05 75%, #34a853 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:24px; font-family:var(--font-display);">Google</h2>
-          <div style="width: 100%; max-width: 480px; display:flex; align-items:center; border:1px solid #dfe1e5; border-radius:24px; padding: 8px 16px; box-shadow:0 1px 6px rgba(32,33,36,0.12); margin-bottom:20px; background:#fff;">
-            <i data-lucide="search" style="color:#9aa0a6; width:16px; margin-right:8px;"></i>
-            <input type="text" id="google-search-bar" placeholder="Search Google or type a query" style="border:none; outline:none; width:100%; font-size:13.5px;" value="">
-          </div>
-          <div style="display:flex; gap:10px;">
-            <button id="google-search-btn" style="background-color:#f8f9fa; border:1px solid #f8f9fa; padding:8px 16px; border-radius:6px; font-size:12.5px; font-weight:500; cursor:pointer;">Google Search</button>
-            <button style="background-color:#f8f9fa; border:1px solid #f8f9fa; padding:8px 16px; border-radius:6px; font-size:12.5px; font-weight:500; cursor:pointer;">I'm Feeling Lucky</button>
-          </div>
-        </div>
+      // Render native iframe
+      container.innerHTML = `
+        <iframe id="safari-real-frame" style="width:100%; height:100%; border:none; background:#ffffff;" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-pointer-lock allow-top-navigation" allow="pointer-lock; fullscreen; autoplay; camera; microphone" src="${cleanUrl}"></iframe>
       `;
-    }
-
-    // Google Results Cards
-    return `
-      <div style="background-color:#ffffff; color:#1a0dab; font-family:sans-serif; height:100%; display:flex; flex-direction:column; padding: 14px; overflow:auto;">
-        <div style="display:flex; align-items:center; gap:16px; border-bottom:0.5px solid #ebebeb; padding-bottom:10px; margin-bottom:14px;">
-          <span style="font-weight:800; font-size:20px; background:linear-gradient(to right, #4285F4, #ea4335, #fbbc05, #34a853); -webkit-background-clip:text; -webkit-text-fill-color:transparent; cursor:pointer;" id="google-logo-back">Google</span>
-          <div style="display:flex; align-items:center; border:1px solid #dfe1e5; border-radius:20px; padding: 4px 12px; background:#fff; width:260px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-            <input type="text" id="google-search-bar" value="${query}" style="border:none; outline:none; width:100%; font-size:12px;">
-          </div>
-        </div>
-        <div style="font-size:11px; color:#70757a; margin-bottom:14px; font-family:var(--font-body);">About 2,340,000 results (0.42 seconds)</div>
-        
-        <!-- Result Cards -->
-        <div style="display:flex; flex-direction:column; gap:16px; max-width:550px; font-family:var(--font-body);">
-          
-          <div class="google-card" data-url="https://apple.com" style="cursor:pointer;">
-            <div style="font-size:11px; color:#202124; margin-bottom:2px;">https://www.apple.com &gt; store</div>
-            <h4 style="font-size:15px; font-weight:600; color:#1a0dab; margin-bottom:3px; text-decoration:none;">Buy Apple M4 MacBook Pro Tahoe - Apple Store</h4>
-            <p style="font-size:12px; color:#4d5156; line-height:1.4;">Configure your dream M4 Ultra device. Customize unified memory up to 128GB and explore Lake Tahoe 2026 release pricing specs.</p>
-          </div>
-
-          <div class="google-card" data-url="https://youtube.com" style="cursor:pointer;">
-            <div style="font-size:11px; color:#202124; margin-bottom:2px;">https://www.youtube.com &gt; watch</div>
-            <h4 style="font-size:15px; font-weight:600; color:#1a0dab; margin-bottom:3px; text-decoration:none;">macOS Tahoe 26 Cinematic Sneak Peek - YouTube</h4>
-            <p style="font-size:12px; color:#4d5156; line-height:1.4;">Watch drone footage of snowy Lake Tahoe in stunning cinematic 4K resolution, or preview liquid glass macOS features in the new trailer.</p>
-          </div>
-
-          <div class="google-card" data-url="https://wikipedia.org?q=tahoe" style="cursor:pointer;">
-            <div style="font-size:11px; color:#202124; margin-bottom:2px;">https://en.wikipedia.org &gt; wiki &gt; Tahoe</div>
-            <h4 style="font-size:15px; font-weight:600; color:#1a0dab; margin-bottom:3px; text-decoration:none;">Lake Tahoe Geography & History - Wikipedia</h4>
-            <p style="font-size:12px; color:#4d5156; line-height:1.4;">Lake Tahoe is a large freshwater lake in the Sierra Nevada of the United States. Pinned at 6,225 ft elevation, it is a global resort attraction.</p>
-          </div>
-
-        </div>
-      </div>
-    `;
-  }
-
-  // B. YOUTUBE SIMULATED CLIENT (With real operational embed video playback!)
-  function renderYouTubePortal(activeVideoId = null) {
-    if (activeVideoId) {
-      return `
-        <div style="background-color:#0f0f0f; color:#ffffff; font-family:var(--font-body); height:100%; display:flex; flex-direction:column; overflow:auto;">
-          <div style="height: 38px; background:#0f0f0f; border-bottom:0.5px solid #2f2f2f; display:flex; align-items:center; padding:0 14px; gap:8px;">
-            <span style="color:#ff0000; font-weight:800; font-size:18px; cursor:pointer;" id="yt-logo-back">YouTube</span>
-          </div>
-          <div style="flex-grow:1; display:flex; flex-direction:column; padding:14px; gap:12px; max-width:680px;">
-            <div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.5); background:#000;">
-              <iframe style="position:absolute; top:0; left:0; width:100%; height:100%; border:none;" src="https://www.youtube.com/embed/${activeVideoId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>
-            </div>
-            <h4 style="font-size:15px; font-weight:700; margin-top:4px;">Operational Video Stream | Tahoe HD Media Stack</h4>
-            <p style="font-size:12px; opacity:0.6; line-height:1.5;">This video is running natively inside Safari's simulated browser context using authorized Youtube Embed integrations. You can toggle audio levels, progress bars, and fullscreen sizes!</p>
-            <button id="yt-return-btn" style="background:#272727; color:#fff; border:none; padding:8px 16px; border-radius:18px; font-size:12px; cursor:pointer; width:max-content; font-weight:600; margin-top:8px;">Back to Feed</button>
-          </div>
-        </div>
-      `;
-    }
-
-    const videos = [
-      { id: 'zR72Eupgex8', title: 'Lake Tahoe in Winter - Cinematic Drone 4K', channel: 'Tahoe Aerials', views: '142K views', duration: '3:45' },
-      { id: '0pg_Y41WaK8', title: 'Apple MacBook Pro M3/M4 Official Unveiling', channel: 'Apple Tech', views: '2.4M views', duration: '9:12' },
-      { id: 'VtvjbmoDx-I', title: 'Original Apple Macintosh 1984 Launch Commercial', channel: 'Apple History', views: '890K views', duration: '1:00' },
-      { id: 'H8gB4C95g9Y', title: 'macOS Sonoma Stage Manager Tutorial Guidelines', channel: 'WebOS Guides', views: '48K views', duration: '4:20' }
-    ];
-
-    let gridHTML = '';
-    videos.forEach(vid => {
-      gridHTML += `
-        <div class="yt-video-card" data-id="${vid.id}" style="cursor:pointer; display:flex; flex-direction:column; gap:6px;">
-          <div style="position:relative; width:100%; padding-bottom:56.25%; border-radius:8px; overflow:hidden; background:#2b2b2b;">
-            <img src="https://img.youtube.com/vi/${vid.id}/mqdefault.jpg" style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover;">
-            <span style="position:absolute; bottom:6px; right:6px; background:rgba(0,0,0,0.8); color:#fff; font-size:9.5px; padding:2px 4px; border-radius:3px; font-weight:600;">${vid.duration}</span>
-          </div>
-          <h4 style="font-size:11.5px; font-weight:600; line-height:1.3; height:32px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; margin-top:2px;">${vid.title}</h4>
-          <div style="font-size:10px; opacity:0.6;">
-            <div>${vid.channel}</div>
-            <div>${vid.views}</div>
-          </div>
-        </div>
-      `;
-    });
-
-    return `
-      <div style="background-color:#0f0f0f; color:#ffffff; font-family:var(--font-body); height:100%; display:flex; flex-direction:column; overflow:auto;">
-        <div style="height: 40px; background:#0f0f0f; border-bottom:0.5px solid #2f2f2f; display:flex; align-items:center; padding:0 14px; gap:8px;">
-          <span style="color:#ff0000; font-weight:800; font-size:18px;">YouTube</span>
-          <span style="font-size:9px; background:#333; color:#aaa; padding:2px 5px; border-radius:4px; font-weight:600; margin-left:4px;">Mock Browser Player</span>
-        </div>
-        <div style="flex-grow:1; padding:20px; display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:20px;">
-          ${gridHTML}
-        </div>
-      </div>
-    `;
-  }
-
-  // C. APPLE WEB STORE CONFIGURATOR (Premium interactive element!)
-  function renderAppleStore(selectedRAM = '64GB', selectedSSD = '1TB') {
-    const basePrice = 3499;
-    let addedPrice = 0;
-    
-    if (selectedRAM === '128GB') addedPrice += 800;
-    if (selectedSSD === '2TB') addedPrice += 400;
-    if (selectedSSD === '4TB') addedPrice += 1000;
-
-    const finalPrice = basePrice + addedPrice;
-
-    return `
-      <div style="background-color:#f5f5f7; color:#1d1d1f; font-family:var(--font-body); height:100%; display:flex; flex-direction:column; overflow:auto;">
-        
-        <!-- Apple Navbar -->
-        <div style="height:36px; background:#161617; display:flex; justify-content:center; align-items:center; gap:30px; font-size:11.5px; font-weight:300;">
-          <span style="color:#f5f5f7; cursor:pointer; display:inline-flex; align-items:center;" id="apple-logo-back">
-            <svg viewBox="0 0 24 24" width="14" height="14" style="fill:currentColor; margin-top:-1px;">
-              <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/>
-            </svg>
-          </span>
-          <span style="color:#cccccc; cursor:pointer;" id="apple-macbook-link">MacBook Pro</span>
-          <span style="color:#cccccc;">iPad</span>
-          <span style="color:#cccccc;">Support</span>
-        </div>
-
-        <div style="flex-grow:1; padding:24px; max-width:800px; margin:0 auto; display:flex; flex-direction:column; gap:20px;">
-          
-          <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:0.5px solid #d2d2d7; padding-bottom:12px;">
-            <h2 style="font-size: 20px; font-weight:700; font-family:var(--font-display);">MacBook Pro M5 Tahoe-26</h2>
-            <span style="font-size: 13px; opacity:0.6;">Configured M5 Ultra Custom Chip</span>
-          </div>
-
-          <div style="display:flex; flex-wrap:wrap; gap:24px; margin-top:8px;">
-            
-            <!-- Left product graphic -->
-            <div style="flex: 1 1 260px; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#ffffff; border-radius:12px; padding:20px; box-shadow:0 4px 12px rgba(0,0,0,0.03); border:0.5px solid rgba(0,0,0,0.06);">
-              <i data-lucide="monitor" style="width:100px; height:100px; color:#1d1d1f; opacity:0.9;"></i>
-              <div style="margin-top:20px; text-align:center;">
-                <h3 style="font-weight:700; font-size:15px;">M5 Ultra Premium Spec</h3>
-                <p style="font-size:11px; opacity:0.6; margin-top:2px;">Apple Custom Silicon Architecture</p>
-              </div>
-            </div>
-
-            <!-- Right configurator console -->
-            <div style="flex: 1 1 280px; display:flex; flex-direction:column; gap:16px;">
-              
-              <!-- RAM configuration options -->
-              <div>
-                <h4 style="font-size:12px; font-weight:700; opacity:0.8; margin-bottom:8px;">1. Unified Memory Space</h4>
-                <div style="display:flex; gap:8px;">
-                  <button class="apple-config-btn ${selectedRAM === '64GB' ? 'active' : ''}" data-type="ram" data-val="64GB" style="flex-grow:1; background:${selectedRAM === '64GB' ? 'rgba(0,122,255,0.08)' : '#fff'}; border:${selectedRAM === '64GB' ? '2px solid var(--primary-accent)' : '1px solid #d2d2d7'}; padding:10px; border-radius:8px; font-size:11.5px; font-weight:600; cursor:pointer;">64GB (Included)</button>
-                  <button class="apple-config-btn ${selectedRAM === '128GB' ? 'active' : ''}" data-type="ram" data-val="128GB" style="flex-grow:1; background:${selectedRAM === '128GB' ? 'rgba(0,122,255,0.08)' : '#fff'}; border:${selectedRAM === '128GB' ? '2px solid var(--primary-accent)' : '1px solid #d2d2d7'}; padding:10px; border-radius:8px; font-size:11.5px; font-weight:600; cursor:pointer;">128GB (+$800)</button>
-                </div>
-              </div>
-
-              <!-- Storage configurations -->
-              <div>
-                <h4 style="font-size:12px; font-weight:700; opacity:0.8; margin-bottom:8px;">2. SSD Flash Capacity</h4>
-                <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                  <button class="apple-config-btn ${selectedSSD === '1TB' ? 'active' : ''}" data-type="ssd" data-val="1TB" style="flex:1 1 90px; background:${selectedSSD === '1TB' ? 'rgba(0,122,255,0.08)' : '#fff'}; border:${selectedSSD === '1TB' ? '2px solid var(--primary-accent)' : '1px solid #d2d2d7'}; padding:10px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer;">1TB SSD</button>
-                  <button class="apple-config-btn ${selectedSSD === '2TB' ? 'active' : ''}" data-type="ssd" data-val="2TB" style="flex:1 1 90px; background:${selectedSSD === '2TB' ? 'rgba(0,122,255,0.08)' : '#fff'}; border:${selectedSSD === '2TB' ? '2px solid var(--primary-accent)' : '1px solid #d2d2d7'}; padding:10px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer;">2TB SSD (+$400)</button>
-                  <button class="apple-config-btn ${selectedSSD === '4TB' ? 'active' : ''}" data-type="ssd" data-val="4TB" style="flex:1 1 90px; background:${selectedSSD === '4TB' ? 'rgba(0,122,255,0.08)' : '#fff'}; border:${selectedSSD === '4TB' ? '2px solid var(--primary-accent)' : '1px solid #d2d2d7'}; padding:10px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer;">4TB SSD (+$1000)</button>
-                </div>
-              </div>
-
-              <!-- Final pricing layout -->
-              <div style="background:#ffffff; border-radius:10px; padding:16px; border:0.5px solid rgba(0,0,0,0.06); display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                <div>
-                  <div style="font-size:11px; opacity:0.6;">Total Configuration Price</div>
-                  <div style="font-size:24px; font-weight:800; color:#1d1d1f;" id="apple-price-val">$${finalPrice.toLocaleString()}</div>
-                </div>
-                <button style="background:var(--primary-accent); color:#ffffff; border:none; padding:10px 20px; border-radius:20px; font-size:12.5px; font-weight:600; cursor:pointer;" id="apple-order-btn">Review Order</button>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  // D. WIKIPEDIA SIMULATED PORTAL
-  function renderWikipedia(searchQuery = '') {
-    const articles = {
-      'apple': {
-        title: 'Apple Inc.',
-        text: 'Apple Inc. is an American multinational technology company headquartered in Cupertino, California. Apple is the largest technology company by revenue, totaling $383.93 billion in 2023. It designs consumer electronics, software, and online services. Famous products include the Macintosh computer, iPhone, and custom M-series hardware architectures.'
-      },
-      'tahoe': {
-        title: 'Lake Tahoe',
-        text: 'Lake Tahoe is a large freshwater lake in the Sierra Nevada of the United States. Lying at an elevation of 6,225 ft (1,897 m), it straddles the state line between California and Nevada, west of Carson City. Lake Tahoe is the largest alpine lake in North America, and at 1,645 ft (501 m) deep, it is the second deepest in the US. Known for its clear water and scenic panoramas.'
-      },
-      'macos': {
-        title: 'macOS',
-        text: 'macOS (originally Mac OS X, then OS X) is a Unix operating system developed and marketed by Apple Inc. since 2001. It is the primary operating system for Apple\'s Mac family of computers. Within the market of desktop and laptop computers, it is the second most widely used desktop OS after Microsoft Windows.'
-      }
-    };
-
-    if (searchQuery && articles[searchQuery.toLowerCase()]) {
-      const art = articles[searchQuery.toLowerCase()];
-      return `
-        <div style="background:#ffffff; color:#000000; font-family:serif; height:100%; display:flex; flex-direction:column; overflow:auto;">
-          <div style="height:38px; background:#f6f6f6; border-bottom:1px solid #a2a9b1; display:flex; align-items:center; padding:0 14px; gap:8px;">
-            <span style="font-weight:700; font-size:16px; cursor:pointer; font-family:sans-serif;" id="wiki-logo-back">Wikipedia</span>
-          </div>
-          <div style="padding:20px; max-width:600px; margin:0 auto; line-height:1.6; font-size:14.5px;">
-            <h1 style="font-size:28px; font-weight:400; border-bottom:1px solid #a2a9b1; padding-bottom:4px; margin-bottom:14px; font-family:sans-serif;">${art.title}</h1>
-            <p style="margin-bottom:12px;">From Wikipedia, the free encyclopedia.</p>
-            <p style="text-align:justify;">${art.text}</p>
-            <hr style="border:none; height:1px; background:#a2a9b1; margin:20px 0;">
-            <button id="wiki-return-btn" style="background:#f6f6f6; border:1px solid #a2a9b1; padding:6px 12px; border-radius:4px; font-size:12px; cursor:pointer; font-family:sans-serif;">Back to Wiki Search</button>
-          </div>
-        </div>
-      `;
-    }
-
-    return `
-      <div style="background:#ffffff; color:#000000; font-family:serif; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px;">
-        <h1 style="font-size:36px; font-weight:400; font-family:serif; margin-bottom:16px;">Wikipedia</h1>
-        <div style="width: 100%; max-width: 440px; display:flex; align-items:center; border:1.5px solid #a2a9b1; padding: 6px 12px; background:#fff; margin-bottom:14px;">
-          <i data-lucide="search" style="color:#72777d; width:16px; margin-right:8px;"></i>
-          <input type="text" id="wiki-search-bar" placeholder="Search Wikipedia (try 'Tahoe', 'Apple', or 'macOS')" style="border:none; outline:none; width:100%; font-size:13.5px; font-family:sans-serif;">
-        </div>
-        <p style="font-size:11.5px; color:#54595d; font-family:sans-serif;">The Free Encyclopedia that anyone can edit.</p>
-      </div>
-    `;
-  }
-
-  // E. CLICK ACTIONS EVENT BINDS FOR SIMULATED SITES
-  function bindSimulatedSiteActions(url) {
-    
-    // 1. Google actions
-    const googleBar = container.querySelector('#google-search-bar');
-    const googleBtn = container.querySelector('#google-search-btn');
-    const googleLogo = container.querySelector('#google-logo-back');
-
-    if (googleLogo) {
-      googleLogo.addEventListener('click', () => {
-        loadPage('https://google.com');
-      });
-    }
-
-    if (googleBtn && googleBar) {
-      googleBtn.addEventListener('click', () => {
-        const query = googleBar.value.trim();
-        if (query) {
-          loadPage(`https://google.com?q=${encodeURIComponent(query)}`);
-        }
-      });
-    }
-    if (googleBar) {
-      googleBar.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          const query = googleBar.value.trim();
-          if (query) {
-            loadPage(`https://google.com?q=${encodeURIComponent(query)}`);
-          }
-        }
-      });
-    }
-
-    // Google result card clicks
-    const googleCards = container.querySelectorAll('.google-card');
-    googleCards.forEach(card => {
-      card.addEventListener('click', () => {
-        const cardUrl = card.dataset.url;
-        historyStack.push(url);
-        loadPage(cardUrl);
-      });
-    });
-
-    // 2. YouTube actions
-    const ytLogo = container.querySelector('#yt-logo-back');
-    const ytReturn = container.querySelector('#yt-return-btn');
-    
-    if (ytLogo) {
-      ytLogo.addEventListener('click', () => {
-        loadPage('https://youtube.com');
-      });
-    }
-    if (ytReturn) {
-      ytReturn.addEventListener('click', () => {
-        loadPage('https://youtube.com');
-      });
-    }
-
-    const videoCards = container.querySelectorAll('.yt-video-card');
-    videoCards.forEach(card => {
-      card.addEventListener('click', () => {
-        const videoId = card.dataset.id;
-        historyStack.push(url);
-        container.innerHTML = renderYouTubePortal(videoId);
-        bindSimulatedSiteActions(url);
-      });
-    });
-
-    // 3. Apple Store actions
-    const appleLogo = container.querySelector('#apple-logo-back');
-    const macBookLink = container.querySelector('#apple-macbook-link');
-
-    if (appleLogo) {
-      appleLogo.addEventListener('click', () => {
-        loadPage('https://apple.com');
-      });
-    }
-    if (macBookLink) {
-      macBookLink.addEventListener('click', () => {
-        loadPage('https://apple.com');
-      });
-    }
-
-    // Config spec button toggles
-    const configButtons = container.querySelectorAll('.apple-config-btn');
-    configButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const type = btn.dataset.type;
-        const val = btn.dataset.val;
-
-        // Active state toggling
-        const ramActive = type === 'ram' ? val : container.querySelector('.apple-config-btn[data-type="ram"].active')?.dataset.val || '64GB';
-        const ssdActive = type === 'ssd' ? val : container.querySelector('.apple-config-btn[data-type="ssd"].active')?.dataset.val || '1TB';
-
-        container.innerHTML = renderAppleStore(ramActive, ssdActive);
-        bindSimulatedSiteActions(url);
-      });
-    });
-
-    const orderBtn = container.querySelector('#apple-order-btn');
-    if (orderBtn) {
-      orderBtn.addEventListener('click', () => {
-        const price = container.querySelector('#apple-price-val').textContent;
-        alert(`Order Placed Successfully!\nTotal cost: ${price}\nYour customized MacBook Pro M4 Tahoe Edition is configured for delivery!`);
-      });
-    }
-
-    // 4. Wikipedia actions
-    const wikiLogo = container.querySelector('#wiki-logo-back');
-    const wikiSearch = container.querySelector('#wiki-search-bar');
-    const wikiReturn = container.querySelector('#wiki-return-btn');
-
-    if (wikiLogo) {
-      wikiLogo.addEventListener('click', () => {
-        loadPage('https://wikipedia.org');
-      });
-    }
-    if (wikiReturn) {
-      wikiReturn.addEventListener('click', () => {
-        loadPage('https://wikipedia.org');
-      });
-    }
-
-    if (wikiSearch) {
-      wikiSearch.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          const val = wikiSearch.value.trim();
-          if (val) {
-            container.innerHTML = renderWikipedia(val);
-            bindSimulatedSiteActions(url);
-          }
-        }
-      });
-    }
+    }, 400);
   }
 
   input.addEventListener('keydown', (e) => {
@@ -1242,9 +969,6 @@ function bindSafari(win) {
       if (val === 'safari://home') {
         renderSafariHome();
         return;
-      }
-      if (!val.startsWith('http://') && !val.startsWith('https://') && !val.startsWith('safari://')) {
-        val = 'https://' + val;
       }
       historyStack.push(input.value);
       loadPage(val);
@@ -1280,6 +1004,35 @@ function bindTerminal(win) {
   const promptPath = win.querySelector('#terminal-prompt-path');
   const canvas = win.querySelector('#terminal-matrix');
   let currentPath = ['~'];
+  let pythonMode = false;
+  let pyodideReady = false;
+  let pyodideInstance = null;
+
+  // Load Pyodide (real Python 3.12 via WebAssembly) - lazy loaded on demand
+  async function loadPython() {
+    if (pyodideReady) return pyodideInstance;
+    printLine('<span style="color:#f7b731;">🐍 Python 3.12 (Pyodide)</span> <span style="color:#aaa;">Loading WebAssembly runtime...</span>');
+    
+    if (!document.getElementById('pyodide-script')) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.id = 'pyodide-script';
+        s.src = 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
+    pyodideInstance = await window.loadPyodide({
+      stdout: (text) => printLine(`<span style="color:#e2e8f0;">${text}</span>`),
+      stderr: (text) => printLine(`<span style="color:#fc8181;">${text}</span>`)
+    });
+    pyodideReady = true;
+    printLine('<span style="color:#68d391;">✓ Python 3.12.0 ready. Type exit() to return to bash.</span>');
+    return pyodideInstance;
+  }
+
 
   function printLine(text, className = '') {
     if (!log) return;
@@ -1287,7 +1040,7 @@ function bindTerminal(win) {
     line.className = `terminal-line ${className}`;
     line.innerHTML = text;
     log.appendChild(line);
-    
+
     // Auto-scroll
     const screen = log.parentElement;
     screen.scrollTop = screen.scrollHeight;
@@ -1301,6 +1054,30 @@ function bindTerminal(win) {
 
     if (!cmd) return;
 
+    // ─── Python REPL Mode ───
+    if (pythonMode) {
+      if (cmd === 'exit()' || cmdString.trim() === 'exit()' || cmdString.trim() === 'quit()') {
+        pythonMode = false;
+        printLine('<span style="color:#aaa;">Exited Python. Back in bash.</span>');
+        promptPath.textContent = `${currentPath.join('/')} $`;
+        return;
+      }
+      printLine(`<span style="color:#63b3ed;">>>> ${cmdString}</span>`);
+      if (!pyodideReady) {
+        printLine('<span style="color:#fc8181;">Python not loaded yet.</span>', '');
+        return;
+      }
+      try {
+        const result = pyodideInstance.runPython(cmdString);
+        if (result !== undefined && result !== null) {
+          printLine(`<span style="color:#e2e8f0;">${result}</span>`);
+        }
+      } catch(e) {
+        printLine(`<span style="color:#fc8181;">${e.message}</span>`);
+      }
+      return;
+    }
+
     printLine(`<span style="color:#ffffff;">$ ${cmdString}</span>`);
 
     switch (cmd) {
@@ -1310,6 +1087,8 @@ function bindTerminal(win) {
         printLine('  ls        - List virtual files and directories');
         printLine('  cd [dir]  - Change directories in the virtual file system');
         printLine('  cat [file]- Output text file content to shell');
+        printLine('  python    - Launch built-in Python 3.12 REPL (Pyodide)');
+        printLine('  pip       - Install Python packages in the REPL');
         printLine('  neofetch  - Output system information layout');
         printLine('  weather   - Display Lake Tahoe City forecast');
         printLine('  siri      - Talk to Siri/Apple Intelligence');
@@ -1383,6 +1162,7 @@ function bindTerminal(win) {
               <div class="neofetch-spec"><span class="neofetch-label">Kernel</span>: WebOS JS Core Engine (v26)</div>
               <div class="neofetch-spec"><span class="neofetch-label">Uptime</span>: Active (Liquid Glass Core)</div>
               <div class="neofetch-spec"><span class="neofetch-label">Shell</span>: Antigravity-bash v4.1</div>
+              <div class="neofetch-spec"><span class="neofetch-label">Python</span>: 3.12.0 (Pyodide/WASM) ✓</div>
               <div class="neofetch-spec"><span class="neofetch-label">CPU</span>: Apple M5 Ultra (Silicon Stack)</div>
               <div class="neofetch-spec"><span class="neofetch-label">Memory</span>: 128 GB Unified LPDDR5</div>
             </div>
@@ -1442,8 +1222,69 @@ function bindTerminal(win) {
         toggleMatrixMode(canvas, log, input);
         break;
 
+      case 'python':
+      case 'python3':
+        loadPython().then(py => {
+          if (py) {
+            pythonMode = true;
+            promptPath.textContent = '>>> ';
+          }
+        }).catch(() => {
+          printLine('<span style="color:#fc8181;">Failed to load Python. Check your internet connection.</span>');
+        });
+        break;
+
+      case 'pip':
+      case 'pip3':
+        const pipPkg = args[0];
+        if (!pipPkg) {
+          printLine('Usage: pip install &lt;package&gt;');
+          break;
+        }
+        if (args[0] !== 'install') {
+          printLine('Only "pip install &lt;package&gt;" is supported in WebOS.');
+          break;
+        }
+        const pkgName = args[1];
+        if (!pkgName) { printLine('Usage: pip install &lt;package&gt;'); break; }
+        loadPython().then(async py => {
+          if (!py) return;
+          printLine(`<span style="color:#f7b731;">📦 Installing ${pkgName}...</span>`);
+          try {
+            await py.loadPackagesFromImports(`import ${pkgName}`);
+            printLine(`<span style="color:#68d391;">✓ Successfully installed ${pkgName}</span>`);
+          } catch(e) {
+            // Try micropip
+            try {
+              await py.runPythonAsync(`
+import micropip
+await micropip.install('${pkgName}')
+              `);
+              printLine(`<span style="color:#68d391;">✓ Successfully installed ${pkgName} via micropip</span>`);
+            } catch(e2) {
+              printLine(`<span style="color:#fc8181;">Could not install ${pkgName}: ${e2.message}</span>`);
+            }
+          }
+        });
+        break;
+
       default:
-        printLine(`bash: command not found: ${cmd}. Type 'help' to review guidelines.`, 'text-red');
+        fetch('/api/terminal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: cmdString })
+        })
+        .then(res => {
+          if (!res.ok) throw new Error();
+          return res.json();
+        })
+        .then(data => {
+          if (data.output) printLine(data.output.replace(/\n/g, '<br>'));
+          if (data.error) printLine(data.error.replace(/\n/g, '<br>'), 'text-red');
+        })
+        .catch(() => {
+          printLine(`bash: command not found: ${cmd}. Type 'help' to review guidelines.`, 'text-red');
+        });
     }
   }
 
@@ -1492,7 +1333,7 @@ function toggleMatrixMode(canvas, log, input) {
   input.parentElement.style.display = 'none';
 
   const ctx = canvas.getContext('2d');
-  
+
   // Resize canvas bounds
   const resizeCanvas = () => {
     canvas.width = canvas.parentElement.offsetWidth;
@@ -1558,11 +1399,11 @@ function bindNotes(win) {
   function renderNoteItems() {
     if (!notesList) return;
     notesList.innerHTML = '';
-    
+
     notes.forEach(note => {
       const item = document.createElement('div');
       item.className = `note-item ${note.id === activeNoteId ? 'active' : ''}`;
-      
+
       item.innerHTML = `
         <div class="note-item-title">${note.title || 'Untitled Note'}</div>
         <div class="note-item-date">${note.date}</div>
@@ -1598,13 +1439,13 @@ function bindNotes(win) {
   textArea.addEventListener('input', (e) => {
     const content = e.target.value;
     const firstLine = content.split('\n')[0] || '';
-    
+
     const activeNote = notes.find(n => n.id === activeNoteId);
     if (activeNote) {
       activeNote.content = content;
       activeNote.title = firstLine.substring(0, 20) || 'Untitled Note';
       activeNote.date = new Date().toLocaleDateString();
-      
+
       saveToStorage();
       renderNoteItems();
       updateWordCount(content);
@@ -1652,7 +1493,7 @@ function bindCalculator(win) {
     if (numStr === 'Error' || numStr === 'NaN') return numStr;
     const num = parseFloat(numStr);
     if (isNaN(num)) return numStr;
-    
+
     const parts = numStr.split('.');
     let formatted = parseFloat(parts[0]).toLocaleString('en-US');
     if (parts.length > 1) {
@@ -1725,7 +1566,7 @@ function bindCalculator(win) {
   function calculateResult() {
     const cur = parseFloat(currentVal);
     let result = 0;
-    
+
     switch (currentOp) {
       case '+': result = prevVal + cur; break;
       case '-': result = prevVal - cur; break;
@@ -1742,10 +1583,10 @@ function bindCalculator(win) {
   // Handle keyboard inputs natively when calculator is focused
   const handleKeyboard = (e) => {
     if (!win.classList.contains('active')) return;
-    
+
     let key = e.key;
     let targetVal = null;
-    
+
     if (key >= '0' && key <= '9') {
       targetVal = key;
     } else if (key === '.') {
@@ -1763,7 +1604,7 @@ function bindCalculator(win) {
     } else if (key === 'Escape' || key === 'c' || key === 'C') {
       targetVal = 'ac';
     }
-    
+
     if (targetVal) {
       e.preventDefault();
       const btn = win.querySelector(`.calc-btn[data-val="${targetVal}"]`);
@@ -1793,8 +1634,8 @@ function bindSettings(win) {
   const container = win.querySelector('#settings-pane-container');
 
   const wallpaperList = [
-    { name: 'Tahoe Dawn (Light)', varName: 'var(--wallpaper-tahoe-light)', url: './assets/tahoe_light.png' },
-    { name: 'Tahoe Midnight (Dark)', varName: 'var(--wallpaper-tahoe-dark)', url: './assets/tahoe_dark.png' }
+    { name: 'Mac Tahoe Day', varName: 'var(--wallpaper-mac-tahoe-day)', url: './assets/MacTahoe-day.jpeg' },
+    { name: 'Mac Tahoe Night', varName: 'var(--wallpaper-mac-tahoe-night)', url: './assets/MacTahoe-night.jpeg' }
   ];
 
   function renderPane(tabName) {
@@ -1817,6 +1658,19 @@ function bindSettings(win) {
             <span>Dock Magnification</span>
             <span style="font-size:12px; color:var(--text-secondary);">Proximity Scaling Enabled</span>
           </div>
+          <div class="settings-option-row">
+            <span>Folder Color</span>
+            <select id="settings-folder-color" style="background:rgba(255,255,255,0.1); border:none; color:inherit; padding:2px 8px; border-radius:4px; outline:none; font-family:var(--font-body); font-size:12px;">
+              <option value="color-blue" ${localStorage.getItem('folderColor') === 'color-blue' || !localStorage.getItem('folderColor') ? 'selected' : ''} style="color:#000;">Blue</option>
+              <option value="color-green" ${localStorage.getItem('folderColor') === 'color-green' ? 'selected' : ''} style="color:#000;">Green</option>
+              <option value="color-grey" ${localStorage.getItem('folderColor') === 'color-grey' ? 'selected' : ''} style="color:#000;">Grey</option>
+              <option value="color-nord" ${localStorage.getItem('folderColor') === 'color-nord' ? 'selected' : ''} style="color:#000;">Nord</option>
+              <option value="color-orange" ${localStorage.getItem('folderColor') === 'color-orange' ? 'selected' : ''} style="color:#000;">Orange</option>
+              <option value="color-purple" ${localStorage.getItem('folderColor') === 'color-purple' ? 'selected' : ''} style="color:#000;">Purple</option>
+              <option value="color-red" ${localStorage.getItem('folderColor') === 'color-red' ? 'selected' : ''} style="color:#000;">Red</option>
+              <option value="color-yellow" ${localStorage.getItem('folderColor') === 'color-yellow' ? 'selected' : ''} style="color:#000;">Yellow</option>
+            </select>
+          </div>
         </div>
       `;
 
@@ -1829,6 +1683,15 @@ function bindSettings(win) {
           if (ccThemeToggle) {
             ccThemeToggle.click();
           }
+        });
+      }
+      
+      const folderColorSelect = container.querySelector('#settings-folder-color');
+      if (folderColorSelect) {
+        folderColorSelect.addEventListener('change', (e) => {
+          localStorage.setItem('folderColor', e.target.value);
+          // dispatch event so Finder updates instantly
+          window.dispatchEvent(new Event('fs-change'));
         });
       }
 
@@ -1844,7 +1707,7 @@ function bindSettings(win) {
         const item = document.createElement('div');
         item.className = 'wallpaper-preview';
         item.style.backgroundImage = `url(${wp.url})`;
-        
+
         // Active border highlights
         const currentActive = getComputedStyle(document.documentElement).getPropertyValue('--wallpaper-active').trim();
         if (currentActive === wp.varName) {
@@ -1854,10 +1717,10 @@ function bindSettings(win) {
         item.addEventListener('click', () => {
           document.querySelectorAll('.wallpaper-preview').forEach(el => el.classList.remove('active'));
           item.classList.add('active');
-          
+
           // Instantly set wallpaper active CSS property
           document.documentElement.style.setProperty('--wallpaper-active', wp.varName);
-          
+
           // Lock screen blurs update implicitly
           const lockBg = document.querySelector('.lock-screen-bg');
           if (lockBg) lockBg.style.backgroundImage = `var(--wallpaper-active)`;
@@ -1958,7 +1821,7 @@ function bindGames(win) {
   const btnPlay = win.querySelector('#btn-play-skiing');
   const btnBack = win.querySelector('#btn-skiing-back');
   const canvas = win.querySelector('#skiing-canvas');
-  
+
   const scoreText = win.querySelector('#skiing-score');
   const speedText = win.querySelector('#skiing-speed');
   const highscoreText = win.querySelector('#skiing-highscore');
@@ -2063,7 +1926,7 @@ function bindGames(win) {
         obs.passed = true;
         score += 1;
         scoreText.textContent = score;
-        
+
         // Speed up every 10 points
         if (score % 10 === 0) {
           speedMult += 0.2;
@@ -2089,7 +1952,7 @@ function bindGames(win) {
   function gameOver() {
     gameRunning = false;
     cancelAnimationFrame(animationFrameId);
-    
+
     // Play crash sound feedback
     if (window.systemSounds) {
       window.systemSounds.playVolumePop();
@@ -2112,7 +1975,7 @@ function bindGames(win) {
   // Keyboard Event Hooks
   const handleKeyDown = (e) => {
     if (!win.classList.contains('active')) return;
-    
+
     if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
       e.preventDefault(); // Stop standard page scrolls
     }
@@ -2194,67 +2057,70 @@ const iconLucideMap = {
   camera: 'aperture'
 };
 
+const iconImagePath = {
+  paint: 'assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/gnome-paint.ico',
+  calendar: 'assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/calendar.ico',
+  timer: 'assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/add-times.ico',
+  camera: 'assets/macOS 26 Tahoe Icons Resources/Extra Resources Package/Icons Pack/apps/accessories-camera.ico'
+};
+
 export function addDockIcon(appId) {
   const dock = document.getElementById('mac-dock');
   if (!dock) return;
-  
+
   if (dock.querySelector(`.dock-item-wrapper[data-app="${appId}"]`)) return;
-  
+
   const wrapper = document.createElement('div');
   wrapper.className = 'dock-item-wrapper';
   wrapper.setAttribute('data-app', appId);
-  
+
   wrapper.innerHTML = `
-    <div class="dock-item glass" title="${titleMap[appId]}" style="background: ${iconBgStyle[appId]}; display:flex; justify-content:center; align-items:center; position:relative; overflow:hidden;">
-      <i data-lucide="${iconLucideMap[appId]}" style="width: 20px; height: 20px; color: #ffffff;"></i>
-    </div>
+    <img class="dock-item" src="${iconImagePath[appId]}" alt="${titleMap[appId]}" />
     <div class="indicator" id="ind-${appId}"></div>
   `;
-  
+
   const settingsItem = dock.querySelector('.dock-item-wrapper[data-app="settings"]');
   if (settingsItem) {
     dock.insertBefore(wrapper, settingsItem);
   } else {
     dock.appendChild(wrapper);
   }
-  
+
   wrapper.addEventListener('click', () => {
     if (window.launchSystemApp) window.launchSystemApp(appId);
   });
-  
+
   if (window.lucide) window.lucide.createIcons();
 }
 
 export function addDesktopIcon(appId) {
   const desktop = document.querySelector('.desktop-icons');
   if (!desktop) return;
-  
+
   if (desktop.querySelector(`.desktop-icon[data-app="${appId}"]`)) return;
-  
+
   const div = document.createElement('div');
   div.className = 'desktop-icon';
   div.setAttribute('data-app', appId);
-  
+
   div.innerHTML = `
-    <div class="icon-img-wrapper" style="background: ${iconBgStyle[appId]}; display:flex; justify-content:center; align-items:center; border-radius:10px; width:44px; height:44px; box-shadow:0 3px 6px rgba(0,0,0,0.15);">
-      <i data-lucide="${iconLucideMap[appId]}" class="desktop-icon-svg" style="width:22px; height:22px; color:#fff;"></i>
-    </div>
+    <img class="desktop-icon-img" src="${iconImagePath[appId]}" alt="${titleMap[appId]}" style="width: 40px; height: 40px; object-fit: contain; margin-bottom: 2px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));" />
     <span class="icon-label" style="text-shadow: 0 1px 2px rgba(0,0,0,0.8);">${titleMap[appId]}</span>
   `;
-  
+
   desktop.appendChild(div);
-  
+
   div.addEventListener('click', (e) => {
     e.stopPropagation();
     document.querySelectorAll('.desktop-icon').forEach(el => el.classList.remove('selected'));
     div.classList.add('selected');
   });
-  
+
   div.addEventListener('dblclick', (e) => {
     e.stopPropagation();
     if (window.launchSystemApp) window.launchSystemApp(appId);
   });
-  
+
   if (window.lucide) window.lucide.createIcons();
 }
 
@@ -2306,32 +2172,32 @@ function bindAppStore(win) {
       btn.disabled = true;
       btn.style.cursor = 'not-allowed';
       btn.style.opacity = '0.7';
-      
+
       let progress = 0;
       btn.textContent = '0%';
       btn.style.background = 'rgba(255,255,255,0.1)';
-      
+
       const installInterval = setInterval(() => {
         progress += 10;
         btn.textContent = `${progress}%`;
-        
+
         if (progress >= 100) {
           clearInterval(installInterval);
-          
+
           // Mark as installed
           window.installedApps[appId] = true;
           localStorage.setItem('tahoe_installed_apps', JSON.stringify(window.installedApps));
-          
+
           btn.disabled = false;
           btn.style.cursor = 'pointer';
           btn.style.opacity = '1';
           btn.textContent = 'OPEN';
           btn.style.background = '#30d158'; // green
-          
+
           // Dynamically inject Dock & Desktop icons!
           addDockIcon(appId);
           addDesktopIcon(appId);
-          
+
           // Play tick sound with safety fallback
           try {
             if (window.systemSounds) window.systemSounds.playVolumePop();
@@ -2377,7 +2243,7 @@ function bindPaint(win) {
     const workspace = canvas.parentElement;
     canvas.width = workspace.clientWidth || 400;
     canvas.height = workspace.clientHeight || 300;
-    
+
     // Fill background initially
     ctx.fillStyle = bgSelect.value;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2440,7 +2306,7 @@ function bindPaint(win) {
 
     ctx.lineWidth = sizeInput.value;
     ctx.lineCap = 'round';
-    
+
     if (eraserActive) {
       ctx.globalCompositeOperation = 'destination-out';
     } else {
@@ -2475,7 +2341,7 @@ function bindCalendar(win) {
   const prevBtn = win.querySelector('.cal-prev-btn');
   const nextBtn = win.querySelector('.cal-next-btn');
   const todayBtn = win.querySelector('.cal-today-btn');
-  
+
   const eventPanel = win.querySelector('.cal-event-panel');
   const eventClose = win.querySelector('.cal-event-close');
   const eventInput = win.querySelector('.cal-event-input');
@@ -2535,7 +2401,7 @@ function bindCalendar(win) {
       cell.style.cursor = 'pointer';
       cell.style.position = 'relative';
       cell.style.transition = 'background-color 0.15s';
-      
+
       cell.innerHTML = `<span>${day}</span>`;
 
       const dateKey = `${year}-${month}-${day}`;
@@ -2689,12 +2555,12 @@ function bindTimer(win) {
       // Start Countdown
       const m = parseInt(minInput.value) || 0;
       const s = parseInt(secInput.value) || 0;
-      
+
       if (remainingSeconds === 0) {
         totalSeconds = m * 60 + s;
         remainingSeconds = totalSeconds;
       }
-      
+
       if (remainingSeconds <= 0) return;
 
       timerRunning = true;
@@ -2703,7 +2569,7 @@ function bindTimer(win) {
 
       timerInterval = setInterval(() => {
         remainingSeconds--;
-        
+
         const remMin = Math.floor(remainingSeconds / 60);
         const remSec = remainingSeconds % 60;
         timeDisplay.textContent = formatTime(remMin, remSec);
@@ -2773,7 +2639,7 @@ function bindTimer(win) {
       swRunning = true;
       swBtnStart.textContent = 'Stop';
       swBtnStart.style.background = '#ff453a';
-      
+
       swInterval = setInterval(() => {
         swTime++;
         swDisplay.textContent = formatStopwatch(swTime);
@@ -2864,7 +2730,7 @@ function bindCamera(win) {
       instant: 'contrast(1.1) brightness(1.05) sepia(0.2) hue-rotate(-5deg)',
       sepia: 'sepia(0.9)'
     };
-    
+
     video.style.filter = filterMap[filter] || 'none';
     fallback.style.filter = filterMap[filter] || 'none';
   });
@@ -2899,7 +2765,7 @@ function bindCamera(win) {
       grad.addColorStop(1, '#0d0f14');
       tempCtx.fillStyle = grad;
       tempCtx.fillRect(0, 0, 640, 480);
-      
+
       tempCtx.fillStyle = '#ffffff';
       tempCtx.font = '700 24px sans-serif';
       tempCtx.textAlign = 'center';
@@ -2915,20 +2781,20 @@ function bindCamera(win) {
       const d = pixels.data;
       if (activeFilter === 'mono' || activeFilter === 'noir') {
         for (let i = 0; i < d.length; i += 4) {
-          const r = d[i], g = d[i+1], b = d[i+2];
-          let v = 0.2126*r + 0.7152*g + 0.0722*b;
+          const r = d[i], g = d[i + 1], b = d[i + 2];
+          let v = 0.2126 * r + 0.7152 * g + 0.0722 * b;
           if (activeFilter === 'noir') {
             v = v < 128 ? (v * v) / 128 : 255 - ((255 - v) * (255 - v)) / 128;
           }
-          d[i] = d[i+1] = d[i+2] = v;
+          d[i] = d[i + 1] = d[i + 2] = v;
         }
         tempCtx.putImageData(pixels, 0, 0);
       } else if (activeFilter === 'sepia') {
         for (let i = 0; i < d.length; i += 4) {
-          const r = d[i], g = d[i+1], b = d[i+2];
-          d[i] = (r * .393) + (g *.769) + (b * .189);
-          d[i+1] = (r * .349) + (g *.686) + (b * .168);
-          d[i+2] = (r * .272) + (g *.534) + (b * .131);
+          const r = d[i], g = d[i + 1], b = d[i + 2];
+          d[i] = (r * .393) + (g * .769) + (b * .189);
+          d[i + 1] = (r * .349) + (g * .686) + (b * .168);
+          d[i + 2] = (r * .272) + (g * .534) + (b * .131);
         }
         tempCtx.putImageData(pixels, 0, 0);
       }
@@ -2938,16 +2804,30 @@ function bindCamera(win) {
 
     // Create photo file in virtual filesystem and add to Desktop shortcut!
     const photoName = `Snapshot_${Date.now()}.png`;
-    
-    // Add to Desktop
+
+    // Add to Desktop in mockFS
     mockFS.Desktop.children[photoName] = {
       type: 'file',
-      content: dataUrl // save base64 directly
+      content: dataUrl
     };
+
+    // Save to the real persistent filesystem via backend
+    fetch('/api/save-file', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: photoName, content: dataUrl })
+    })
+    .then(res => res.json())
+    .then(() => {
+      console.log('Snapshot successfully persisted to disk.');
+    })
+    .catch(err => {
+      console.error('Failed to persist snapshot to disk:', err);
+    });
 
     // Dispatch filesystem reload event
     window.dispatchEvent(new CustomEvent('fs-change'));
-    
+
     alert(`Photo captured successfully!\nSaved as [${photoName}] on your Desktop.\nYou can double-click it to download or review.`);
   });
 
@@ -2963,3 +2843,75 @@ function bindCamera(win) {
   observer.observe(document.body, { childList: true, subtree: true });
 }
 
+export function bindPreview(win) {
+  const contentEl = win.querySelector('.preview-content');
+  const titleEl = win.querySelector('.preview-title');
+  const name = win.dataset.fileName || 'Document';
+  
+  if (titleEl) {
+    titleEl.textContent = name;
+  }
+  
+  if (win.dataset.fileContent && contentEl) {
+    const content = win.dataset.fileContent;
+    const lowerName = name.toLowerCase();
+    
+    if (lowerName.endsWith('.pdf')) {
+      contentEl.innerHTML = `<iframe src="${content}" style="width:100%; height:100%; border:none; background:#ffffff; border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,0.3);"></iframe>`;
+    } else {
+      contentEl.innerHTML = `<img class="preview-img" src="${content}" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,0.5);">`;
+    }
+  }
+}
+
+export function bindInstaller(win) {
+  const progressEl = win.querySelector('.installer-progress');
+  const statusEl = win.querySelector('.installer-status');
+  const titleEl = win.querySelector('.installer-title');
+  const descEl = win.querySelector('.installer-desc');
+  
+  const appName = win.dataset.fileName ? win.dataset.fileName.replace('.exe', '').replace('.dmg', '').replace('.pkg', '') : 'Application';
+  titleEl.textContent = `Installing ${appName}`;
+
+  let progress = 0;
+  const interval = setInterval(() => {
+    progress += Math.random() * 15;
+    if (progress >= 100) {
+      progress = 100;
+      clearInterval(interval);
+      
+      progressEl.style.width = '100%';
+      statusEl.textContent = '100%';
+      descEl.textContent = 'Installation Complete! Adding to Desktop...';
+      
+      setTimeout(() => {
+        // Create an icon on the desktop
+        const safeId = appName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        window.installedApps = window.installedApps || {};
+        window.installedApps[safeId] = true;
+        localStorage.setItem('tahoe_installed_apps', JSON.stringify(window.installedApps));
+        
+        // Add to mock FS desktop so it appears!
+        import('./fs.js').then(({ mockFS }) => {
+          mockFS.Desktop.children[`${appName}.url`] = {
+            type: 'file',
+            content: `[InternetShortcut]\nURL=https://google.com/search?q=${appName}`
+          };
+          window.dispatchEvent(new CustomEvent('fs-change'));
+        });
+        
+        descEl.textContent = 'Done! You can close this window.';
+        const pkgIcon = win.querySelector('[data-lucide="package"]');
+        if (pkgIcon) {
+           pkgIcon.setAttribute('data-lucide', 'check-circle');
+           pkgIcon.style.color = '#30d158';
+        }
+        if (window.lucide) window.lucide.createIcons();
+      }, 1000);
+      
+    } else {
+      progressEl.style.width = `${progress}%`;
+      statusEl.textContent = `${Math.floor(progress)}%`;
+    }
+  }, 400);
+}
