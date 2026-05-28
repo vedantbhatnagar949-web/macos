@@ -2584,19 +2584,19 @@ html, body {
   user-select: none;
   -webkit-user-select: none;
   /* Apply macOS Custom Cursors globally */
-  cursor: url('assets/macOS 26 Tahoe Icons Resources/Cursor/extracted/MacOS-Tahoe-Windows-Free/MacOS-Tahoe-Free/Normal Select.cur'), default;
+  cursor: url('assets/icons/Cursor/extracted/MacOS-Tahoe-Windows-Free/MacOS-Tahoe-Free/Normal Select.cur'), default;
 }
 
 a, button, .dock-item, .desktop-icon, .menu-item, .window-action, [role="button"] {
-  cursor: url('assets/macOS 26 Tahoe Icons Resources/Cursor/extracted/MacOS-Tahoe-Windows-Free/MacOS-Tahoe-Free/Link Select.cur'), pointer !important;
+  cursor: url('assets/icons/Cursor/extracted/MacOS-Tahoe-Windows-Free/MacOS-Tahoe-Free/Link Select.cur'), pointer !important;
 }
 
 input, textarea, [contenteditable="true"] {
-  cursor: url('assets/macOS 26 Tahoe Icons Resources/Cursor/extracted/MacOS-Tahoe-Windows-Free/MacOS-Tahoe-Free/Text Select.cur'), text !important;
+  cursor: url('assets/icons/Cursor/extracted/MacOS-Tahoe-Windows-Free/MacOS-Tahoe-Free/Text Select.cur'), text !important;
 }
 
 .window-titlebar {
-  cursor: url('assets/macOS 26 Tahoe Icons Resources/Cursor/extracted/MacOS-Tahoe-Windows-Free/MacOS-Tahoe-Free/Move.cur'), move;
+  cursor: url('assets/icons/Cursor/extracted/MacOS-Tahoe-Windows-Free/MacOS-Tahoe-Free/Move.cur'), move;
 }
 
 .siri-send-btn {

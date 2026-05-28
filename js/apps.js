@@ -60,8 +60,11 @@ export const appHTMLRegistry = {
         <div class="safari-address-bar" style="position: relative; display: flex; align-items: center; width: 100%;">
           <i data-lucide="lock" style="color: #27c93f; min-width: 12px; min-height: 12px; margin-right: 4px;"></i>
           <input type="text" id="safari-address-input" value="safari://home" placeholder="Search Google or enter Website URL" style="flex-grow: 1; border: none; background: none; outline: none; color: var(--text-primary);">
-          <button id="safari-reload-btn" title="Reload Page" style="background: none; border: none; color: var(--text-primary); cursor: pointer; opacity: 0.65; display: flex; align-items: center; padding: 0 4px; transition: opacity 0.15s ease;">
+          <button id="safari-reload-btn" title="Reload Page" style="background: none; border: none; color: var(--text-primary); cursor: pointer; opacity: 0.65; display: flex; align-items: center; padding: 0 4px; transition: opacity 0.15s ease; margin-right: 4px;">
             <i data-lucide="rotate-cw" style="width: 13px; height: 13px;"></i>
+          </button>
+          <button id="safari-external-btn" title="Open in New Tab (Fixes Google Sign-in / CSP blocks)" style="background: none; border: none; color: var(--text-primary); cursor: pointer; opacity: 0.65; display: flex; align-items: center; padding: 0 4px; transition: opacity 0.15s ease;">
+            <i data-lucide="external-link" style="width: 13px; height: 13px;"></i>
           </button>
         </div>
       </div>
@@ -708,6 +711,29 @@ function bindSafari(win) {
   const input = win.querySelector('#safari-address-input');
   const backBtn = win.querySelector('#safari-back-btn');
   const homeBtn = win.querySelector('#safari-home-btn');
+  const reloadBtn = win.querySelector('#safari-reload-btn');
+  const externalBtn = win.querySelector('#safari-external-btn');
+
+  if (reloadBtn) {
+    reloadBtn.addEventListener('click', () => {
+      const val = input.value.trim();
+      if (val && val !== 'safari://home') {
+        loadPage(val);
+      }
+    });
+  }
+
+  if (externalBtn) {
+    externalBtn.addEventListener('click', () => {
+      let val = input.value.trim();
+      if (val && val !== 'safari://home') {
+        if (!val.startsWith('http://') && !val.startsWith('https://')) {
+          val = 'https://' + val;
+        }
+        window.open(val, '_blank');
+      }
+    });
+  }
 
   const historyStack = [];
 
@@ -905,9 +931,30 @@ function bindSafari(win) {
       if (cleanUrl.includes('.') && !cleanUrl.includes(' ')) {
         cleanUrl = 'https://' + cleanUrl;
       } else {
-        // Use DuckDuckGo — it allows iframe embedding unlike Google Search
-        cleanUrl = 'https://duckduckgo.com/?q=' + encodeURIComponent(cleanUrl) + '&kae=d&k1=-1';
+        cleanUrl = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(cleanUrl);
       }
+    }
+
+    if (cleanUrl.includes('accounts.google.com') || cleanUrl.includes('google.com/accounts') || cleanUrl.includes('accounts.google.co.in')) {
+      window.open(cleanUrl, '_blank');
+      container.innerHTML = `
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; font-family:var(--font-body); padding:20px; text-align:center; color:var(--text-primary); background:var(--bg-primary);">
+          <div class="siri-icon-orb" style="width: 48px; height: 48px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #ff69b4, #8a2be2 50%, #00ffff 80%); box-shadow: 0 0 16px rgba(138, 43, 226, 0.6), inset -1.5px -1.5px 4px rgba(0,0,0,0.4); animation: siri-glow-pulse 2s infinite ease-in-out; margin-bottom:16px;"></div>
+          <h3 style="margin: 0 0 8px 0; font-weight:600; font-size:15px; color:var(--text-primary);">Google Sign-In Opened Externally</h3>
+          <p style="font-size:12px; opacity:0.8; max-width:400px; line-height:1.5; margin: 0 0 16px 0; color:var(--text-secondary);">To bypass strict iframe restrictions (Clickjacking security), Google Sign-In has been opened in a secure, new browser tab.</p>
+          <button id="safari-reopen-login" style="background:#0071e3; color:white; border:none; padding:8px 16px; border-radius:8px; font-weight:600; font-size:12px; cursor:pointer; outline:none; transition: background 0.2s;">Re-open Sign-In Tab</button>
+        </div>
+      `;
+      if (window.lucide) window.lucide.createIcons();
+      const reopenBtn = container.querySelector('#safari-reopen-login');
+      if (reopenBtn) {
+        reopenBtn.addEventListener('click', () => {
+          window.open(cleanUrl, '_blank');
+        });
+      }
+      input.value = cleanUrl;
+      updateToolbar();
+      return;
     }
 
     input.value = cleanUrl;
@@ -955,9 +1002,10 @@ function bindSafari(win) {
         setTimeout(() => loadLine.remove(), 200);
       }
 
-      // Render native iframe
+      // Render native iframe (safely sandboxed without allow-top-navigation to prevent parent page hijacking)
+      // Route through our custom server-side bypass proxy to strip X-Frame-Options/CSP blocking headers
       container.innerHTML = `
-        <iframe id="safari-real-frame" style="width:100%; height:100%; border:none; background:#ffffff;" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-pointer-lock allow-top-navigation" allow="pointer-lock; fullscreen; autoplay; camera; microphone" src="${cleanUrl}"></iframe>
+        <iframe id="safari-real-frame" style="width:100%; height:100%; border:none; background:#ffffff;" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-pointer-lock" allow="pointer-lock; fullscreen; autoplay; camera; microphone" src="/api/proxy?url=${encodeURIComponent(cleanUrl)}"></iframe>
       `;
     }, 400);
   }
@@ -2805,8 +2853,8 @@ function bindCamera(win) {
     // Create photo file in virtual filesystem and add to Desktop shortcut!
     const photoName = `Snapshot_${Date.now()}.png`;
 
-    // Add to Desktop in mockFS
-    mockFS.Desktop.children[photoName] = {
+    // Add to Desktop in mockFS (using correct children navigation)
+    mockFS.children.Desktop.children[photoName] = {
       type: 'file',
       content: dataUrl
     };
@@ -2891,9 +2939,9 @@ export function bindInstaller(win) {
         window.installedApps[safeId] = true;
         localStorage.setItem('tahoe_installed_apps', JSON.stringify(window.installedApps));
         
-        // Add to mock FS desktop so it appears!
+        // Add to mock FS desktop so it appears! (using correct children navigation)
         import('./fs.js').then(({ mockFS }) => {
-          mockFS.Desktop.children[`${appName}.url`] = {
+          mockFS.children.Desktop.children[`${appName}.url`] = {
             type: 'file',
             content: `[InternetShortcut]\nURL=https://google.com/search?q=${appName}`
           };
